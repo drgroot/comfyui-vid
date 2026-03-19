@@ -21,6 +21,23 @@ fi
 
 ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
 
+COMFYUI_RUNS_DIR="${COMFYUI_DIR}/output/comfyui-vid-runs"
+WORKSPACE_RUNS_DIR="/workspace/comfyui-vid-runs"
+
+mkdir -p "$WORKSPACE_RUNS_DIR"
+
+if [ -L "$COMFYUI_RUNS_DIR" ]; then
+    rm -f "$COMFYUI_RUNS_DIR"
+elif [ -d "$COMFYUI_RUNS_DIR" ]; then
+    if find "$COMFYUI_RUNS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+        cp -a "$COMFYUI_RUNS_DIR"/. "$WORKSPACE_RUNS_DIR"/
+    fi
+    rm -rf "$COMFYUI_RUNS_DIR"
+fi
+
+mkdir -p "${COMFYUI_DIR}/output"
+ln -s "$WORKSPACE_RUNS_DIR" "$COMFYUI_RUNS_DIR"
+
 # Start ComfyUI in the background.
 echo "Starting ComfyUI in the background..."
 python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention &
