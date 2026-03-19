@@ -29,7 +29,3 @@ RUN mkdir -p /workspace/ComfyUI/models && \
     ln -s /workspace/ComfyUI/models "$COMFYUI_DIR/models"
 
 COPY . .
-RUN chmod +x /entrypoint.sh
-RUN chmod +x /entrypoint-ui.sh
-
-CMD ["/entrypoint.sh"]
