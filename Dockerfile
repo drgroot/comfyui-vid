@@ -1,7 +1,6 @@
 FROM yusufali/comfyui:latest
 
-RUN $COMFYUI_VENV_PIP install -U "huggingface_hub[hf_transfer]"
-RUN $COMFYUI_VENV_PIP install runpod websocket-client
+RUN $COMFYUI_VENV_PIP install -U "huggingface_hub[hf_transfer]" runpod websocket-client
 
 WORKDIR /
 
@@ -24,6 +23,10 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     git clone https://github.com/eddyhhlure1Eddy/ComfyUI-AdaptiveWindowSize && \
     cd ComfyUI-AdaptiveWindowSize/ComfyUI-AdaptiveWindowSize && \
     mv * ../
+
+RUN mkdir -p /workspace/ComfyUI/models && \
+    rm -rf "$COMFYUI_DIR/models" && \
+    ln -s /workspace/ComfyUI/models "$COMFYUI_DIR/models"
 
 COPY . .
 COPY extra_model_paths.yaml $COMFYUI_DIR/extra_model_paths.yaml
