@@ -1,5 +1,4 @@
 import runpod
-from runpod.serverless.utils import rp_upload
 import os
 import websocket
 import base64
@@ -73,6 +72,9 @@ def download_file_from_url(url, output_path):
 def save_base64_to_file(base64_data, temp_dir, output_filename):
     """Base64 데이터를 파일로 저장하는 함수"""
     try:
+        if "," in base64_data:
+            base64_data = base64_data.split(",", 1)[1]
+
         # Base64 문자열 디코딩
         decoded_data = base64.b64decode(base64_data)
         
@@ -144,11 +146,18 @@ def load_workflow(workflow_path):
     with open(workflow_path, 'r') as file:
         return json.load(file)
 
-def handler(job):
-    job_input = job.get("input", {})
+def handler(event):
+    if "input" not in event:
+        raise ValueError("Runpod event payload must include an 'input' object.")
 
-    logger.info(f"Received job input: {job_input}")
+    job_input = event["input"] or {}
+
+    logger.info(f"Received event input: {job_input}")
     task_id = f"task_{uuid.uuid4()}"
+
+    prompt_text = job_input.get("prompt")
+    if not prompt_text:
+        raise ValueError("The 'prompt' field is required.")
 
     # 이미지 입력 처리 (image_path, image_url, image_base64 중 하나만 사용)
     image_path = None
@@ -176,10 +185,10 @@ def handler(job):
     lora_pairs = job_input.get("lora_pairs", [])
     
     # 최대 4개 LoRA까지 지원
-    lora_count = min(len(lora_pairs), 4)
-    if lora_count > len(lora_pairs):
+    if len(lora_pairs) > 4:
         logger.warning(f"LoRA 개수가 {len(lora_pairs)}개입니다. 최대 4개까지만 지원됩니다. 처음 4개만 사용합니다.")
         lora_pairs = lora_pairs[:4]
+    lora_count = len(lora_pairs)
     
     # 워크플로우 파일 선택 (end_image_*가 있으면 FLF2V 워크플로 사용)
     workflow_file = "/new_Wan22_flf2v_api.json" if end_image_path_local else "/new_Wan22_api.json"
@@ -192,14 +201,16 @@ def handler(job):
 
     prompt["244"]["inputs"]["image"] = image_path
     prompt["541"]["inputs"]["num_frames"] = length
-    prompt["135"]["inputs"]["positive_prompt"] = job_input["prompt"]
+    prompt["135"]["inputs"]["positive_prompt"] = prompt_text
     prompt["135"]["inputs"]["negative_prompt"] = job_input.get("negative_prompt", "bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards")
-    prompt["220"]["inputs"]["seed"] = job_input["seed"]
-    prompt["540"]["inputs"]["seed"] = job_input["seed"]
-    prompt["540"]["inputs"]["cfg"] = job_input["cfg"]
+    seed = job_input.get("seed", 42)
+    cfg = job_input.get("cfg", 2.0)
+    prompt["220"]["inputs"]["seed"] = seed
+    prompt["540"]["inputs"]["seed"] = seed
+    prompt["540"]["inputs"]["cfg"] = cfg
     # 해상도(폭/높이) 16배수 보정
-    original_width = job_input["width"]
-    original_height = job_input["height"]
+    original_width = job_input.get("width", 480)
+    original_height = job_input.get("height", 832)
     adjusted_width = to_nearest_multiple_of_16(original_width)
     adjusted_height = to_nearest_multiple_of_16(original_height)
     if adjusted_width != original_width:
@@ -276,7 +287,6 @@ def handler(job):
     # 웹소켓 연결 시도 (최대 3분)
     max_attempts = int(180/5)  # 3분 (1초에 한 번씩 시도)
     for attempt in range(max_attempts):
-        import time
         try:
             ws.connect(ws_url)
             logger.info(f"웹소켓 연결 성공 (시도 {attempt+1})")
@@ -296,4 +306,5 @@ def handler(job):
     
     return {"error": "비디오를를 찾을 수 없습니다."}
 
-runpod.serverless.start({"handler": handler})
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": handler})
