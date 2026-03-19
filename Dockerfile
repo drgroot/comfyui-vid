@@ -29,7 +29,6 @@ RUN mkdir -p /workspace/ComfyUI/models && \
     ln -s /workspace/ComfyUI/models "$COMFYUI_DIR/models"
 
 COPY . .
-COPY extra_model_paths.yaml $COMFYUI_DIR/extra_model_paths.yaml
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /entrypoint-ui.sh
 
