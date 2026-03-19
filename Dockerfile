@@ -1,23 +1,33 @@
-FROM yusufali/comfyui:latest
+FROM wlsdml1114/engui_genai-base_blackwell:1.1 as runtime
 
-RUN $COMFYUI_VENV_PIP install -U "huggingface_hub[hf_transfer]" runpod websocket-client
+RUN pip install -U "huggingface_hub[hf_transfer]"
+RUN pip install runpod websocket-client
 
 WORKDIR /
 
-RUN cd "$COMFYUI_DIR/custom_nodes" && \
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
+    cd /ComfyUI && \
+    pip install -r requirements.txt
+
+RUN cd /ComfyUI/custom_nodes && \
+    git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
+    cd ComfyUI-Manager && \
+    pip install -r requirements.txt
+
+RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite && \
     cd ComfyUI-VideoHelperSuite && \
-    $COMFYUI_VENV_PIP install -r requirements.txt
+    pip install -r requirements.txt
 
-RUN cd "$COMFYUI_DIR/custom_nodes" && \
+RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/kael558/ComfyUI-GGUF-FantasyTalking && \
     cd ComfyUI-GGUF-FantasyTalking && \
-    $COMFYUI_VENV_PIP install -r requirements.txt
+    pip install -r requirements.txt
 
-RUN cd "$COMFYUI_DIR/custom_nodes" && \
+RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/orssorbit/ComfyUI-wanBlockswap
 
-RUN cd "$COMFYUI_DIR/custom_nodes" && \
+RUN cd /ComfyUI/custom_nodes && \
     git clone https://github.com/eddyhhlure1Eddy/IntelligentVRAMNode && \
     git clone https://github.com/eddyhhlure1Eddy/auto_wan2.2animate_freamtowindow_server && \
     git clone https://github.com/eddyhhlure1Eddy/ComfyUI-AdaptiveWindowSize && \
@@ -25,11 +35,11 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     mv * ../
 
 RUN mkdir -p /workspace/ComfyUI/models && \
-    rm -rf "$COMFYUI_DIR/models" && \
-    ln -s /workspace/ComfyUI/models "$COMFYUI_DIR/models"
+    rm -rf /ComfyUI/models && \
+    ln -s /workspace/ComfyUI/models /ComfyUI/models
 
 COPY . .
-
+COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
 RUN chmod +x /entrypoint.sh /entrypoint-ui.sh
 
 CMD ["/entrypoint.sh"]
