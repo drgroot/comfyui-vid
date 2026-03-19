@@ -3,9 +3,27 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
+WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
+COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
+WORKSPACE_MODELS_DIR="${WORKSPACE_COMFYUI_DIR}/models"
+
+mkdir -p "$WORKSPACE_MODELS_DIR"/{checkpoints,loras,text_encoders,vae}
+
+if [ -L "$COMFYUI_MODELS_DIR" ]; then
+    rm -f "$COMFYUI_MODELS_DIR"
+elif [ -d "$COMFYUI_MODELS_DIR" ]; then
+    if find "$COMFYUI_MODELS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+        cp -a "$COMFYUI_MODELS_DIR"/. "$WORKSPACE_MODELS_DIR"/
+    fi
+    rm -rf "$COMFYUI_MODELS_DIR"
+fi
+
+ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
+
 # Start ComfyUI in the background
 echo "Starting ComfyUI in the background..."
-python /ComfyUI/main.py --listen --use-sage-attention &
+python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention &
 
 # Wait for ComfyUI to be ready
 echo "Waiting for ComfyUI to be ready..."
@@ -29,4 +47,4 @@ fi
 # Start the handler in the foreground.
 # This script becomes the container's main process.
 echo "Starting the handler..."
-exec python handler.py
+exec python3 handler.py

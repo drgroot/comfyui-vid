@@ -469,7 +469,7 @@ def build_basic_prompt(
     vae_loader = add_prompt_node(
         prompt, next_id, "VAELoader",
         {"vae_name": config["vae_name"]},
-        "VAE Loader",
+        "Load VAE",
     )
     image_loader = add_prompt_node(
         prompt, next_id, "LoadImage",
