@@ -1,16 +1,17 @@
 {
-    "title": "Wan2.2 with LoRA",
-    "description": "Advanced AI model for generating high-quality videos from images with natural motion and realistic animations. you can use at most 3 LoRA pairs",
+    "title": "Wan2.2 RunPod Serverless Worker",
+    "description": "ComfyUI-based Wan2.2 image-to-video serverless worker using the basic.json workflow. Requests provide staged prompt tuples, image input, optional output path, and model overrides for Wan, VAE, CLIP, and LoRAs.",
     "type": "serverless",
     "category": "video",
     "iconUrl": "https://github.com/wlsdml1114/Engui_Studio/blob/main/assets/logo.png?raw=true",
   
     "config": {
       "runsOn": "GPU",
+      "endpointType": "LB",
       "containerDiskInGb": 180,
   
       "gpuCount": 1,
-      "gpuIds": "ADA_24,ADA_32_PRO",
+      "gpuIds": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
       "allowedCudaVersions": [
         "12.8"
       ]

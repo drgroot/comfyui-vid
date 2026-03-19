@@ -7,90 +7,90 @@ import uuid
 import logging
 import urllib.request
 import urllib.parse
-import binascii # Base64 에러 처리를 위해 import
+import binascii  # Used for Base64 error handling
 import subprocess
+import shutil
 import time
-# 로깅 설정
+from typing import Any, Dict, List, Optional, Tuple
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 server_address = os.getenv('SERVER_ADDRESS', '127.0.0.1')
 client_id = str(uuid.uuid4())
+BASIC_WORKFLOW_PATH = os.path.join(os.path.dirname(__file__), "basic.json")
 def to_nearest_multiple_of_16(value):
-    """주어진 값을 가장 가까운 16의 배수로 보정, 최소 16 보장"""
+    """Round a value to the nearest multiple of 16, with a minimum of 16."""
     try:
         numeric_value = float(value)
     except Exception:
-        raise Exception(f"width/height 값이 숫자가 아닙니다: {value}")
+        raise Exception(f"width/height must be numeric: {value}")
     adjusted = int(round(numeric_value / 16.0) * 16)
     if adjusted < 16:
         adjusted = 16
     return adjusted
 def process_input(input_data, temp_dir, output_filename, input_type):
-    """입력 데이터를 처리하여 파일 경로를 반환하는 함수"""
+    """Process input data and return a file path."""
     if input_type == "path":
-        # 경로인 경우 그대로 반환
-        logger.info(f"📁 경로 입력 처리: {input_data}")
+        logger.info(f"Processing path input: {input_data}")
         return input_data
     elif input_type == "url":
-        # URL인 경우 다운로드
-        logger.info(f"🌐 URL 입력 처리: {input_data}")
+        logger.info(f"Processing URL input: {input_data}")
         os.makedirs(temp_dir, exist_ok=True)
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
         return download_file_from_url(input_data, file_path)
     elif input_type == "base64":
-        # Base64인 경우 디코딩하여 저장
-        logger.info(f"🔢 Base64 입력 처리")
+        logger.info("Processing Base64 input")
         return save_base64_to_file(input_data, temp_dir, output_filename)
     else:
-        raise Exception(f"지원하지 않는 입력 타입: {input_type}")
+        raise Exception(f"Unsupported input type: {input_type}")
 
         
 def download_file_from_url(url, output_path):
-    """URL에서 파일을 다운로드하는 함수"""
+    """Download a file from a URL."""
     try:
-        # wget을 사용하여 파일 다운로드
+        # Download the file with wget.
         result = subprocess.run([
             'wget', '-O', output_path, '--no-verbose', url
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
-            logger.info(f"✅ URL에서 파일을 성공적으로 다운로드했습니다: {url} -> {output_path}")
+            logger.info(f"Downloaded file successfully: {url} -> {output_path}")
             return output_path
         else:
-            logger.error(f"❌ wget 다운로드 실패: {result.stderr}")
-            raise Exception(f"URL 다운로드 실패: {result.stderr}")
+            logger.error(f"wget download failed: {result.stderr}")
+            raise Exception(f"URL download failed: {result.stderr}")
     except subprocess.TimeoutExpired:
-        logger.error("❌ 다운로드 시간 초과")
-        raise Exception("다운로드 시간 초과")
+        logger.error("Download timed out")
+        raise Exception("Download timed out")
     except Exception as e:
-        logger.error(f"❌ 다운로드 중 오류 발생: {e}")
-        raise Exception(f"다운로드 중 오류 발생: {e}")
+        logger.error(f"Error while downloading file: {e}")
+        raise Exception(f"Error while downloading file: {e}")
 
 
 def save_base64_to_file(base64_data, temp_dir, output_filename):
-    """Base64 데이터를 파일로 저장하는 함수"""
+    """Save Base64 data to a file."""
     try:
         if "," in base64_data:
             base64_data = base64_data.split(",", 1)[1]
 
-        # Base64 문자열 디코딩
+        # Decode the Base64 string.
         decoded_data = base64.b64decode(base64_data)
         
-        # 디렉토리가 존재하지 않으면 생성
+        # Create the directory if it does not exist.
         os.makedirs(temp_dir, exist_ok=True)
         
-        # 파일로 저장
+        # Write the decoded file to disk.
         file_path = os.path.abspath(os.path.join(temp_dir, output_filename))
         with open(file_path, 'wb') as f:
             f.write(decoded_data)
         
-        logger.info(f"✅ Base64 입력을 '{file_path}' 파일로 저장했습니다.")
+        logger.info(f"Saved Base64 input to file: {file_path}")
         return file_path
     except (binascii.Error, ValueError) as e:
-        logger.error(f"❌ Base64 디코딩 실패: {e}")
-        raise Exception(f"Base64 디코딩 실패: {e}")
+        logger.error(f"Base64 decode failed: {e}")
+        raise Exception(f"Base64 decode failed: {e}")
     
 def queue_prompt(prompt):
     url = f"http://{server_address}:8188/prompt"
@@ -134,10 +134,7 @@ def get_videos(ws, prompt):
         videos_output = []
         if 'gifs' in node_output:
             for video in node_output['gifs']:
-                # fullpath를 이용하여 직접 파일을 읽고 base64로 인코딩
-                with open(video['fullpath'], 'rb') as f:
-                    video_data = base64.b64encode(f.read()).decode('utf-8')
-                videos_output.append(video_data)
+                videos_output.append(video)
         output_videos[node_id] = videos_output
 
     return output_videos
@@ -146,20 +143,528 @@ def load_workflow(workflow_path):
     with open(workflow_path, 'r') as file:
         return json.load(file)
 
-def handler(event):
-    if "input" not in event:
-        raise ValueError("Runpod event payload must include an 'input' object.")
+def normalize_prompt_pairs(raw_pairs: Any) -> List[Dict[str, Any]]:
+    if not isinstance(raw_pairs, list) or not raw_pairs:
+        raise ValueError("The 'prompts' field must be a non-empty list of [positive, negative] or [positive, negative, length] entries.")
 
-    job_input = event["input"] or {}
+    normalized: List[Dict[str, Any]] = []
+    for index, pair in enumerate(raw_pairs, start=1):
+        if not isinstance(pair, (list, tuple)) or len(pair) not in (2, 3):
+            raise ValueError(f"'prompts[{index - 1}]' must be a 2-item or 3-item list or tuple.")
+        positive, negative = pair[0], pair[1]
+        if not isinstance(positive, str) or not isinstance(negative, str):
+            raise ValueError(f"'prompts[{index - 1}]' values must both be strings.")
+        if not positive.strip():
+            raise ValueError(f"'prompts[{index - 1}]' positive prompt cannot be empty.")
+        stage_length = 81
+        if len(pair) == 3:
+            stage_length = pair[2]
+            if not isinstance(stage_length, int):
+                raise ValueError(f"'prompts[{index - 1}][2]' must be an integer when provided.")
+            if stage_length <= 0:
+                raise ValueError(f"'prompts[{index - 1}][2]' must be greater than 0.")
+        normalized.append(
+            {
+                "positive": positive,
+                "negative": negative,
+                "length": stage_length,
+            }
+        )
+    return normalized
 
-    logger.info(f"Received event input: {job_input}")
+
+def normalize_model_reference(model_path: str, model_group: str) -> str:
+    if not isinstance(model_path, str) or not model_path.strip():
+        raise ValueError(f"Model path for '{model_group}' must be a non-empty string.")
+
+    normalized_path = model_path.strip()
+    marker = f"/models/{model_group}/"
+    if marker in normalized_path:
+        return normalized_path.split(marker, 1)[1]
+    if os.path.isabs(normalized_path):
+        return os.path.basename(normalized_path)
+    return normalized_path
+
+
+def resolve_lora_pairs(models_input: Dict[str, Any], basic_config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if "loras" not in models_input:
+        return [
+            {
+                "high": basic_config["high_base_lora_name"],
+                "low": basic_config["low_base_lora_name"],
+                "high_weight": basic_config["high_base_lora_strength"],
+                "low_weight": basic_config["low_base_lora_strength"],
+            },
+            {
+                "high": basic_config["high_svi_lora_name"],
+                "low": basic_config["low_svi_lora_name"],
+                "high_weight": basic_config["high_svi_lora_strength"],
+                "low_weight": basic_config["low_svi_lora_strength"],
+            },
+        ]
+
+    raw_loras = models_input.get("loras")
+    if not isinstance(raw_loras, list):
+        raise ValueError("'models.loras' must be a list when provided.")
+
+    normalized_loras: List[Dict[str, Any]] = []
+    for index, lora in enumerate(raw_loras):
+        if not isinstance(lora, dict):
+            raise ValueError(f"'models.loras[{index}]' must be an object.")
+        high_path = lora.get("high")
+        low_path = lora.get("low")
+        if not isinstance(high_path, str) or not high_path.strip():
+            raise ValueError(f"'models.loras[{index}].high' must be a non-empty string.")
+        if not isinstance(low_path, str) or not low_path.strip():
+            raise ValueError(f"'models.loras[{index}].low' must be a non-empty string.")
+        high_weight = lora.get("high_weight", 1.0)
+        low_weight = lora.get("low_weight", 1.0)
+        if not isinstance(high_weight, (int, float)):
+            raise ValueError(f"'models.loras[{index}].high_weight' must be numeric.")
+        if not isinstance(low_weight, (int, float)):
+            raise ValueError(f"'models.loras[{index}].low_weight' must be numeric.")
+
+        normalized_loras.append(
+            {
+                "high": normalize_model_reference(high_path, "loras"),
+                "low": normalize_model_reference(low_path, "loras"),
+                "high_weight": float(high_weight),
+                "low_weight": float(low_weight),
+            }
+        )
+    return normalized_loras
+
+
+def resolve_runtime_config(job_input: Dict[str, Any], basic_config: Dict[str, Any]) -> Dict[str, Any]:
+    config = dict(basic_config)
+    config["video"] = dict(basic_config["video"])
+    config["video"]["format"] = "video/h264-mp4"
+
+    models_input = job_input.get("models")
+    if models_input is None:
+        models_input = {}
+    elif not isinstance(models_input, dict):
+        raise ValueError("'models' must be an object when provided.")
+
+    if "vae" in models_input:
+        config["vae_name"] = normalize_model_reference(models_input["vae"], "vae")
+    if "clip" in models_input:
+        config["clip_name"] = normalize_model_reference(models_input["clip"], "text_encoders")
+
+    wan_models = models_input.get("wan")
+    if wan_models is None:
+        wan_models = {}
+    elif not isinstance(wan_models, dict):
+        raise ValueError("'models.wan' must be an object when provided.")
+    if "high" in wan_models:
+        config["high_unet_name"] = normalize_model_reference(wan_models["high"], "checkpoints")
+    if "low" in wan_models:
+        config["low_unet_name"] = normalize_model_reference(wan_models["low"], "checkpoints")
+
+    config["lora_pairs"] = resolve_lora_pairs(models_input, basic_config)
+
+    if "sampler" in job_input:
+        if not isinstance(job_input["sampler"], str) or not job_input["sampler"].strip():
+            raise ValueError("'sampler' must be a non-empty string when provided.")
+        config["sampler_name"] = job_input["sampler"].strip()
+
+    if "frame_rate" in job_input:
+        frame_rate = job_input["frame_rate"]
+        if not isinstance(frame_rate, int) or frame_rate <= 0:
+            raise ValueError("'frame_rate' must be a positive integer when provided.")
+        config["video"]["frame_rate"] = frame_rate
+
+    return config
+
+
+def resolve_output_video_path(job_input: Dict[str, Any]) -> Optional[str]:
+    requested_path = job_input.get("ouput_video")
+    if requested_path is None:
+        requested_path = job_input.get("output_video")
+
+    if requested_path is None:
+        return None
+    if not isinstance(requested_path, str) or not requested_path.strip():
+        raise ValueError("'ouput_video' must be a non-empty string when provided.")
+
+    normalized_path = requested_path.strip()
+    root, ext = os.path.splitext(normalized_path)
+    if ext.lower() != ".mp4":
+        normalized_path = f"{root}.mp4" if ext else f"{normalized_path}.mp4"
+
+    return os.path.abspath(normalized_path)
+
+
+def save_generated_video(source_path: str, output_path: str) -> str:
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    shutil.copy2(source_path, output_path)
+    return output_path
+
+
+def merge_job_input(shared_input: Dict[str, Any], task_input: Dict[str, Any]) -> Dict[str, Any]:
+    merged = {key: value for key, value in shared_input.items() if key != "tasks"}
+
+    shared_models = merged.get("models")
+    task_models = task_input.get("models")
+    if isinstance(shared_models, dict) and isinstance(task_models, dict):
+        merged_models = dict(shared_models)
+        for key, value in task_models.items():
+            if key == "wan" and isinstance(merged_models.get("wan"), dict) and isinstance(value, dict):
+                merged_wan = dict(merged_models["wan"])
+                merged_wan.update(value)
+                merged_models["wan"] = merged_wan
+            else:
+                merged_models[key] = value
+        merged["models"] = merged_models
+
+    for key, value in task_input.items():
+        if key == "models" and isinstance(shared_models, dict) and isinstance(task_models, dict):
+            continue
+        merged[key] = value
+
+    return merged
+
+
+def normalize_job_tasks(job_input: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], bool]:
+    raw_tasks = job_input.get("tasks")
+    if raw_tasks is None:
+        return [job_input], False
+
+    if not isinstance(raw_tasks, list) or not raw_tasks:
+        raise ValueError("'tasks' must be a non-empty list when provided.")
+
+    normalized_tasks: List[Dict[str, Any]] = []
+    for index, task in enumerate(raw_tasks):
+        if not isinstance(task, dict):
+            raise ValueError(f"'tasks[{index}]' must be an object.")
+        normalized_tasks.append(merge_job_input(job_input, task))
+    return normalized_tasks, True
+
+
+def connect_to_comfyui() -> websocket.WebSocket:
+    ws_url = f"ws://{server_address}:8188/ws?clientId={client_id}"
+    logger.info(f"Connecting to WebSocket: {ws_url}")
+
+    http_url = f"http://{server_address}:8188/"
+    logger.info(f"Checking HTTP connection to: {http_url}")
+
+    max_http_attempts = 180
+    for http_attempt in range(max_http_attempts):
+        try:
+            response = urllib.request.urlopen(http_url, timeout=5)
+            logger.info(f"HTTP connection succeeded (attempt {http_attempt + 1})")
+            response.close()
+            break
+        except Exception as e:
+            logger.warning(f"HTTP connection failed (attempt {http_attempt + 1}/{max_http_attempts}): {e}")
+            if http_attempt == max_http_attempts - 1:
+                raise Exception("Could not connect to the ComfyUI server. Confirm that it is running.")
+            time.sleep(1)
+
+    ws = websocket.WebSocket()
+    max_attempts = int(180 / 5)
+    for attempt in range(max_attempts):
+        try:
+            ws.connect(ws_url)
+            logger.info(f"WebSocket connection succeeded (attempt {attempt + 1})")
+            return ws
+        except Exception as e:
+            logger.warning(f"WebSocket connection failed (attempt {attempt + 1}/{max_attempts}): {e}")
+            if attempt == max_attempts - 1:
+                raise Exception("WebSocket connection timed out (3 minutes)")
+            time.sleep(5)
+
+    raise Exception("WebSocket connection timed out (3 minutes)")
+
+
+def extract_generated_video(videos: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    for node_id in videos:
+        if videos[node_id]:
+            return videos[node_id][0]
+    raise ValueError("Could not find a generated video.")
+
+def load_basic_workflow_config() -> Dict[str, Any]:
+    workflow = load_workflow(BASIC_WORKFLOW_PATH)
+    nodes = {node["id"]: node for node in workflow["nodes"]}
+    subgraphs = {subgraph["id"]: subgraph for subgraph in workflow["definitions"]["subgraphs"]}
+    stage_one_nodes = {node["id"]: node for node in subgraphs["8bfbb9ea-806f-408a-b795-0b0203ad0179"]["nodes"]}
+    stage_extension_nodes = {node["id"]: node for node in subgraphs["fea43421-19fd-4371-8ea3-8a6cca4ab475"]["nodes"]}
+
+    video_defaults = dict(nodes[319]["widgets_values"])
+    video_defaults.pop("videopreview", None)
+
+    return {
+        "clip_name": nodes[84]["widgets_values"][0],
+        "clip_type": nodes[84]["widgets_values"][1],
+        "clip_device": nodes[84]["widgets_values"][2],
+        "vae_name": nodes[90]["widgets_values"][0],
+        "high_unet_name": nodes[557]["widgets_values"][0],
+        "low_unet_name": nodes[558]["widgets_values"][0],
+        "high_base_lora_name": nodes[301]["widgets_values"][0],
+        "high_base_lora_strength": nodes[301]["widgets_values"][1],
+        "high_svi_lora_name": nodes[300]["widgets_values"][0],
+        "high_svi_lora_strength": nodes[300]["widgets_values"][1],
+        "low_base_lora_name": nodes[306]["widgets_values"][0],
+        "low_base_lora_strength": nodes[306]["widgets_values"][1],
+        "low_svi_lora_name": nodes[304]["widgets_values"][0],
+        "low_svi_lora_strength": nodes[304]["widgets_values"][1],
+        "sampler_name": nodes[299]["widgets_values"][0],
+        "scheduler_name": nodes[298]["widgets_values"][0],
+        "scheduler_steps": nodes[298]["widgets_values"][1],
+        "scheduler_denoise": nodes[298]["widgets_values"][2],
+        "split_step": nodes[128]["widgets_values"][0],
+        "model_shift": nodes[297]["widgets_values"][0],
+        "stage_length": stage_one_nodes[134]["widgets_values"][0],
+        "motion_latent_count": stage_one_nodes[134]["widgets_values"][1],
+        "guider_cfg": stage_one_nodes[121]["widgets_values"][0],
+        "guider_start_percent": stage_one_nodes[121]["widgets_values"][1],
+        "guider_end_percent": stage_one_nodes[121]["widgets_values"][2],
+        "extension_overlap": stage_extension_nodes[329]["widgets_values"][0],
+        "extension_overlap_side": stage_extension_nodes[329]["widgets_values"][1],
+        "extension_overlap_mode": stage_extension_nodes[329]["widgets_values"][2],
+        "video": video_defaults,
+    }
+
+def add_prompt_node(
+    prompt: Dict[str, Any],
+    next_id: List[int],
+    class_type: str,
+    inputs: Dict[str, Any],
+    title: str,
+) -> str:
+    node_id = str(next_id[0])
+    next_id[0] += 1
+    prompt[node_id] = {
+        "inputs": inputs,
+        "class_type": class_type,
+        "_meta": {"title": title},
+    }
+    return node_id
+
+def build_basic_prompt(
+    image_path: str,
+    prompt_pairs: List[Dict[str, Any]],
+    steps: int,
+    cfg: float,
+    seed: int,
+    config: Dict[str, Any],
+) -> Dict[str, Any]:
+    prompt: Dict[str, Any] = {}
+    next_id = [1]
+
+    split_ratio = config["split_step"] / max(config["scheduler_steps"], 1)
+    split_step = min(max(1, int(round(steps * split_ratio))), max(1, steps - 1))
+
+    clip_loader = add_prompt_node(
+        prompt, next_id, "CLIPLoader",
+        {
+            "clip_name": config["clip_name"],
+            "type": config["clip_type"],
+            "device": config["clip_device"],
+        },
+        "CLIP Loader",
+    )
+    vae_loader = add_prompt_node(
+        prompt, next_id, "VAELoader",
+        {"vae_name": config["vae_name"]},
+        "VAE Loader",
+    )
+    image_loader = add_prompt_node(
+        prompt, next_id, "LoadImage",
+        {"image": image_path},
+        "Input Image",
+    )
+    anchor_samples = add_prompt_node(
+        prompt, next_id, "VAEEncode",
+        {"pixels": [image_loader, 0], "vae": [vae_loader, 0]},
+        "Anchor Samples",
+    )
+
+    high_unet = add_prompt_node(
+        prompt, next_id, "UnetLoaderGGUF",
+        {"unet_name": config["high_unet_name"]},
+        "High UNet",
+    )
+    def add_lora_chain(base_model_id: str, branch: str) -> str:
+        current_model_id = base_model_id
+        for index, lora_pair in enumerate(config["lora_pairs"], start=1):
+            current_model_id = add_prompt_node(
+                prompt, next_id, "LoraLoaderModelOnly",
+                {
+                    "model": [current_model_id, 0],
+                    "lora_name": lora_pair[branch],
+                    "strength_model": lora_pair[f"{branch}_weight"],
+                },
+                f"{branch.title()} LoRA {index}",
+            )
+        return current_model_id
+
+    high_lora_model = add_lora_chain(high_unet, "high")
+    high_model_sampling = add_prompt_node(
+        prompt, next_id, "ModelSamplingSD3",
+        {"model": [high_lora_model, 0], "shift": config["model_shift"]},
+        "Model Sampling SD3",
+    )
+    sigma_scheduler = add_prompt_node(
+        prompt, next_id, "BasicScheduler",
+        {
+            "model": [high_model_sampling, 0],
+            "scheduler": config["scheduler_name"],
+            "steps": steps,
+            "denoise": config["scheduler_denoise"],
+        },
+        "Basic Scheduler",
+    )
+    split_sigmas = add_prompt_node(
+        prompt, next_id, "SplitSigmas",
+        {"sigmas": [sigma_scheduler, 0], "step": split_step},
+        "Split Sigmas",
+    )
+
+    low_unet = add_prompt_node(
+        prompt, next_id, "UnetLoaderGGUF",
+        {"unet_name": config["low_unet_name"]},
+        "Low UNet",
+    )
+    low_lora_model = add_lora_chain(low_unet, "low")
+    sampler = add_prompt_node(
+        prompt, next_id, "KSamplerSelect",
+        {"sampler_name": config["sampler_name"]},
+        "Sampler Select",
+    )
+
+    def build_stage(
+        pair: Dict[str, Any],
+        stage_index: int,
+        prev_samples: Optional[Tuple[str, int]] = None,
+        source_images: Optional[Tuple[str, int]] = None,
+    ) -> Tuple[Tuple[str, int], Tuple[str, int], Tuple[str, int]]:
+        positive_prompt = pair["positive"]
+        negative_prompt = pair["negative"]
+        length = pair["length"]
+        positive = add_prompt_node(
+            prompt, next_id, "CLIPTextEncode",
+            {"text": positive_prompt, "clip": [clip_loader, 0]},
+            f"Positive Prompt {stage_index}",
+        )
+        negative = add_prompt_node(
+            prompt, next_id, "CLIPTextEncode",
+            {"text": negative_prompt, "clip": [clip_loader, 0]},
+            f"Negative Prompt {stage_index}",
+        )
+
+        svi_inputs: Dict[str, Any] = {
+            "positive": [positive, 0],
+            "negative": [negative, 0],
+            "length": length,
+            "anchor_samples": [anchor_samples, 0],
+            "motion_latent_count": config["motion_latent_count"],
+        }
+        if prev_samples is not None:
+            svi_inputs["prev_samples"] = [prev_samples[0], prev_samples[1]]
+
+        svi = add_prompt_node(
+            prompt, next_id, "WanImageToVideoSVIPro", svi_inputs, f"SVI Stage {stage_index}"
+        )
+        guider_high = add_prompt_node(
+            prompt, next_id, "ScheduledCFGGuidance",
+            {
+                "model": [high_lora_model, 0],
+                "positive": [svi, 0],
+                "negative": [svi, 1],
+                "cfg": cfg,
+                "start_percent": config["guider_start_percent"],
+                "end_percent": config["guider_end_percent"],
+            },
+            f"High CFG {stage_index}",
+        )
+        guider_low = add_prompt_node(
+            prompt, next_id, "ScheduledCFGGuidance",
+            {
+                "model": [low_lora_model, 0],
+                "positive": [svi, 0],
+                "negative": [svi, 1],
+                "cfg": cfg,
+                "start_percent": config["guider_start_percent"],
+                "end_percent": config["guider_end_percent"],
+            },
+            f"Low CFG {stage_index}",
+        )
+        random_noise = add_prompt_node(
+            prompt, next_id, "RandomNoise",
+            {"noise_seed": seed + ((stage_index - 1) * 300)},
+            f"Random Noise {stage_index}",
+        )
+        disabled_noise = add_prompt_node(
+            prompt, next_id, "DisableNoise", {}, f"Disable Noise {stage_index}"
+        )
+        high_sample = add_prompt_node(
+            prompt, next_id, "SamplerCustomAdvanced",
+            {
+                "noise": [random_noise, 0],
+                "guider": [guider_high, 0],
+                "sampler": [sampler, 0],
+                "sigmas": [split_sigmas, 0],
+                "latent_image": [svi, 2],
+            },
+            f"High Sample {stage_index}",
+        )
+        low_sample = add_prompt_node(
+            prompt, next_id, "SamplerCustomAdvanced",
+            {
+                "noise": [disabled_noise, 0],
+                "guider": [guider_low, 0],
+                "sampler": [sampler, 0],
+                "sigmas": [split_sigmas, 1],
+                "latent_image": [high_sample, 0],
+            },
+            f"Low Sample {stage_index}",
+        )
+        decoded_images = add_prompt_node(
+            prompt, next_id, "VAEDecode",
+            {"samples": [low_sample, 0], "vae": [vae_loader, 0]},
+            f"Decode Stage {stage_index}",
+        )
+
+        if source_images is None:
+            return (low_sample, 0), (decoded_images, 0), (decoded_images, 0)
+
+        extended_images = add_prompt_node(
+            prompt, next_id, "ImageBatchExtendWithOverlap",
+            {
+                "source_images": [source_images[0], source_images[1]],
+                "new_images": [decoded_images, 0],
+                "overlap": config["extension_overlap"],
+                "overlap_side": config["extension_overlap_side"],
+                "overlap_mode": config["extension_overlap_mode"],
+            },
+            f"Extend Stage {stage_index}",
+        )
+        return (low_sample, 0), (decoded_images, 0), (extended_images, 2)
+
+    previous_latent, _previous_preview_images, final_images = build_stage(prompt_pairs[0], 1)
+    for stage_index, pair in enumerate(prompt_pairs[1:], start=2):
+        previous_latent, _previous_preview_images, final_images = build_stage(
+            pair,
+            stage_index,
+            prev_samples=previous_latent,
+            source_images=final_images,
+        )
+
+    video_inputs = dict(config["video"])
+    video_inputs["images"] = [final_images[0], final_images[1]]
+    add_prompt_node(prompt, next_id, "VHS_VideoCombine", video_inputs, "Video Combine")
+    return prompt
+
+
+def run_generation_task(job_input: Dict[str, Any], basic_config: Dict[str, Any]) -> Dict[str, Any]:
     task_id = f"task_{uuid.uuid4()}"
 
-    prompt_text = job_input.get("prompt")
-    if not prompt_text:
-        raise ValueError("The 'prompt' field is required.")
+    prompt_pairs = normalize_prompt_pairs(job_input.get("prompts"))
+    output_video_path = resolve_output_video_path(job_input)
 
-    # 이미지 입력 처리 (image_path, image_url, image_base64 중 하나만 사용)
     image_path = None
     if "image_path" in job_input:
         image_path = process_input(job_input["image_path"], task_id, "input_image.jpg", "path")
@@ -168,143 +673,79 @@ def handler(event):
     elif "image_base64" in job_input:
         image_path = process_input(job_input["image_base64"], task_id, "input_image.jpg", "base64")
     else:
-        # 기본값 사용
         image_path = "/example_image.png"
-        logger.info("기본 이미지 파일을 사용합니다: /example_image.png")
+        logger.info("Using default image file: /example_image.png")
 
-    # 엔드 이미지 입력 처리 (end_image_path, end_image_url, end_image_base64 중 하나만 사용)
-    end_image_path_local = None
-    if "end_image_path" in job_input:
-        end_image_path_local = process_input(job_input["end_image_path"], task_id, "end_image.jpg", "path")
-    elif "end_image_url" in job_input:
-        end_image_path_local = process_input(job_input["end_image_url"], task_id, "end_image.jpg", "url")
-    elif "end_image_base64" in job_input:
-        end_image_path_local = process_input(job_input["end_image_base64"], task_id, "end_image.jpg", "base64")
-    
-    # LoRA 설정 확인 - 배열로 받아서 처리
-    lora_pairs = job_input.get("lora_pairs", [])
-    
-    # 최대 4개 LoRA까지 지원
-    if len(lora_pairs) > 4:
-        logger.warning(f"LoRA 개수가 {len(lora_pairs)}개입니다. 최대 4개까지만 지원됩니다. 처음 4개만 사용합니다.")
-        lora_pairs = lora_pairs[:4]
-    lora_count = len(lora_pairs)
-    
-    # 워크플로우 파일 선택 (end_image_*가 있으면 FLF2V 워크플로 사용)
-    workflow_file = "/new_Wan22_flf2v_api.json" if end_image_path_local else "/new_Wan22_api.json"
-    logger.info(f"Using {'FLF2V' if end_image_path_local else 'single'} workflow with {lora_count} LoRA pairs")
-    
-    prompt = load_workflow(workflow_file)
-    
-    length = job_input.get("length", 81)
-    steps = job_input.get("steps", 10)
+    runtime_config = resolve_runtime_config(job_input, basic_config)
+    seed = job_input.get("seed", 2025)
+    if not isinstance(seed, int):
+        raise ValueError("'seed' must be an integer when provided.")
 
-    prompt["244"]["inputs"]["image"] = image_path
-    prompt["541"]["inputs"]["num_frames"] = length
-    prompt["135"]["inputs"]["positive_prompt"] = prompt_text
-    prompt["135"]["inputs"]["negative_prompt"] = job_input.get("negative_prompt", "bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, overall gray, worst quality, low quality, JPEG compression residue, ugly, incomplete, extra fingers, poorly drawn hands, poorly drawn faces, deformed, disfigured, misshapen limbs, fused fingers, still picture, messy background, three legs, many people in the background, walking backwards")
-    seed = job_input.get("seed", 42)
-    cfg = job_input.get("cfg", 2.0)
-    prompt["220"]["inputs"]["seed"] = seed
-    prompt["540"]["inputs"]["seed"] = seed
-    prompt["540"]["inputs"]["cfg"] = cfg
-    # 해상도(폭/높이) 16배수 보정
+    cfg = job_input.get("cfg", basic_config["guider_cfg"])
+    steps = job_input.get("steps", basic_config["scheduler_steps"])
+    if not isinstance(steps, int) or steps <= 0:
+        raise ValueError("'steps' must be a positive integer when provided.")
+
     original_width = job_input.get("width", 480)
-    original_height = job_input.get("height", 832)
+    original_height = job_input.get("height", 480)
     adjusted_width = to_nearest_multiple_of_16(original_width)
     adjusted_height = to_nearest_multiple_of_16(original_height)
     if adjusted_width != original_width:
         logger.info(f"Width adjusted to nearest multiple of 16: {original_width} -> {adjusted_width}")
     if adjusted_height != original_height:
         logger.info(f"Height adjusted to nearest multiple of 16: {original_height} -> {adjusted_height}")
-    prompt["235"]["inputs"]["value"] = adjusted_width
-    prompt["236"]["inputs"]["value"] = adjusted_height
-    prompt["498"]["inputs"]["context_overlap"] = job_input.get("context_overlap", 48)
-    prompt["498"]["inputs"]["context_frames"] = length
 
-    # step 설정 적용
-    if "834" in prompt:
-        prompt["834"]["inputs"]["steps"] = steps
-        logger.info(f"Steps set to: {steps}")
-        lowsteps = int(steps*0.6)
-        prompt["829"]["inputs"]["step"] = lowsteps
-        logger.info(f"LowSteps set to: {lowsteps}")
+    prompt = build_basic_prompt(
+        image_path=image_path,
+        prompt_pairs=prompt_pairs,
+        steps=steps,
+        cfg=cfg,
+        seed=seed,
+        config=runtime_config,
+    )
 
-    # 엔드 이미지가 있는 경우 617번 노드에 경로 적용 (FLF2V 전용)
-    if end_image_path_local:
-        prompt["617"]["inputs"]["image"] = end_image_path_local
-    
-    # LoRA 설정 적용 - HIGH LoRA는 노드 279, LOW LoRA는 노드 553
-    if lora_count > 0:
-        # HIGH LoRA 노드 (279번)
-        high_lora_node_id = "279"
-        
-        # LOW LoRA 노드 (553번)
-        low_lora_node_id = "553"
-        
-        # 입력받은 LoRA pairs 적용 (lora_1부터 시작)
-        for i, lora_pair in enumerate(lora_pairs):
-            if i < 4:  # 최대 4개까지만
-                lora_high = lora_pair.get("high")
-                lora_low = lora_pair.get("low")
-                lora_high_weight = lora_pair.get("high_weight", 1.0)
-                lora_low_weight = lora_pair.get("low_weight", 1.0)
-                
-                # HIGH LoRA 설정 (노드 279번, lora_1부터 시작)
-                if lora_high:
-                    prompt[high_lora_node_id]["inputs"][f"lora_{i+1}"] = lora_high
-                    prompt[high_lora_node_id]["inputs"][f"strength_{i+1}"] = lora_high_weight
-                    logger.info(f"LoRA {i+1} HIGH applied to node 279: {lora_high} with weight {lora_high_weight}")
-                
-                # LOW LoRA 설정 (노드 553번, lora_1부터 시작)
-                if lora_low:
-                    prompt[low_lora_node_id]["inputs"][f"lora_{i+1}"] = lora_low
-                    prompt[low_lora_node_id]["inputs"][f"strength_{i+1}"] = lora_low_weight
-                    logger.info(f"LoRA {i+1} LOW applied to node 553: {lora_low} with weight {lora_low_weight}")
+    ws = connect_to_comfyui()
+    try:
+        videos = get_videos(ws, prompt)
+    finally:
+        ws.close()
 
-    ws_url = f"ws://{server_address}:8188/ws?clientId={client_id}"
-    logger.info(f"Connecting to WebSocket: {ws_url}")
-    
-    # 먼저 HTTP 연결이 가능한지 확인
-    http_url = f"http://{server_address}:8188/"
-    logger.info(f"Checking HTTP connection to: {http_url}")
-    
-    # HTTP 연결 확인 (최대 1분)
-    max_http_attempts = 180
-    for http_attempt in range(max_http_attempts):
+    generated_video = extract_generated_video(videos)
+    source_video_path = generated_video.get("fullpath")
+    if not source_video_path:
+        raise ValueError("Generated video metadata does not include 'fullpath'.")
+
+    if output_video_path:
+        saved_path = save_generated_video(source_video_path, output_video_path)
+        return {"ouput_video": saved_path, "output_video": saved_path}
+
+    with open(source_video_path, 'rb') as f:
+        video_data = base64.b64encode(f.read()).decode('utf-8')
+    return {"video": video_data}
+
+def handler(event):
+    if "input" not in event:
+        raise ValueError("Runpod event payload must include an 'input' object.")
+
+    job_input = event["input"] or {}
+    logger.info(f"Received event input: {job_input}")
+    basic_config = load_basic_workflow_config()
+    tasks, is_batch_request = normalize_job_tasks(job_input)
+
+    if not is_batch_request:
+        return run_generation_task(tasks[0], basic_config)
+
+    results: List[Dict[str, Any]] = []
+    for index, task_input in enumerate(tasks):
+        logger.info(f"Starting batch task {index + 1}/{len(tasks)}")
         try:
-            import urllib.request
-            response = urllib.request.urlopen(http_url, timeout=5)
-            logger.info(f"HTTP 연결 성공 (시도 {http_attempt+1})")
-            break
+            task_result = run_generation_task(task_input, basic_config)
         except Exception as e:
-            logger.warning(f"HTTP 연결 실패 (시도 {http_attempt+1}/{max_http_attempts}): {e}")
-            if http_attempt == max_http_attempts - 1:
-                raise Exception("ComfyUI 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.")
-            time.sleep(1)
-    
-    ws = websocket.WebSocket()
-    # 웹소켓 연결 시도 (최대 3분)
-    max_attempts = int(180/5)  # 3분 (1초에 한 번씩 시도)
-    for attempt in range(max_attempts):
-        try:
-            ws.connect(ws_url)
-            logger.info(f"웹소켓 연결 성공 (시도 {attempt+1})")
-            break
-        except Exception as e:
-            logger.warning(f"웹소켓 연결 실패 (시도 {attempt+1}/{max_attempts}): {e}")
-            if attempt == max_attempts - 1:
-                raise Exception("웹소켓 연결 시간 초과 (3분)")
-            time.sleep(5)
-    videos = get_videos(ws, prompt)
-    ws.close()
+            logger.exception(f"Batch task {index + 1} failed: {e}")
+            task_result = {"error": str(e)}
+        results.append(task_result)
 
-    # 이미지가 없는 경우 처리
-    for node_id in videos:
-        if videos[node_id]:
-            return {"video": videos[node_id][0]}
-    
-    return {"error": "비디오를를 찾을 수 없습니다."}
+    return {"tasks": results}
 
 if __name__ == "__main__":
     runpod.serverless.start({"handler": handler})

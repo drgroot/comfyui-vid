@@ -9,12 +9,14 @@ import requests
 import json
 import time
 import base64
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Tuple, Union
 import logging
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+PromptEntry = Union[Tuple[str, str], Tuple[str, str, int]]
 
 class GenerateVideoClient:
     def __init__(
@@ -62,11 +64,11 @@ class GenerateVideoClient:
                 file_data = f.read()
                 base64_data = base64.b64encode(file_data).decode('utf-8')
             
-            logger.info(f"✅ File base64 encoding completed: {file_path}")
+            logger.info(f"File base64 encoding completed: {file_path}")
             return base64_data
             
         except Exception as e:
-            logger.error(f"❌ File base64 encoding failed: {e}")
+            logger.error(f"File base64 encoding failed: {e}")
             return None
     
     def submit_job(self, input_data: Dict[str, Any]) -> Optional[str]:
@@ -92,14 +94,14 @@ class GenerateVideoClient:
             job_id = response_data.get('id')
             
             if job_id:
-                logger.info(f"✅ Job submission successful! Job ID: {job_id}")
+                logger.info(f"Job submission successful. Job ID: {job_id}")
                 return job_id
             else:
-                logger.error(f"❌ Failed to receive Job ID: {response_data}")
+                logger.error(f"Failed to receive Job ID: {response_data}")
                 return None
                 
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Job submission failed: {e}")
+            logger.error(f"Job submission failed: {e}")
             return None
     
     def wait_for_completion(self, job_id: str, check_interval: int = 10, max_wait_time: int = 1800) -> Dict[str, Any]:
@@ -118,7 +120,7 @@ class GenerateVideoClient:
         
         while time.time() - start_time < max_wait_time:
             try:
-                logger.info(f"⏱️ Checking job status... (Job ID: {job_id})")
+                logger.info(f"Checking job status... (Job ID: {job_id})")
                 
                 response = self.session.get(f"{self.status_url}/{job_id}", timeout=30)
                 response.raise_for_status()
@@ -127,24 +129,24 @@ class GenerateVideoClient:
                 status = status_data.get('status')
                 
                 if status == 'COMPLETED':
-                    logger.info("✅ Job completed!")
+                    logger.info("Job completed.")
                     return {
                         'status': 'COMPLETED',
                         'output': status_data.get('output'),
                         'job_id': job_id
                     }
                 elif status == 'FAILED':
-                    logger.error("❌ Job failed.")
+                    logger.error("Job failed.")
                     return {
                         'status': 'FAILED',
                         'error': status_data.get('error', 'Unknown error'),
                         'job_id': job_id
                     }
                 elif status in ['IN_QUEUE', 'IN_PROGRESS']:
-                    logger.info(f"🏃 Job in progress... (Status: {status})")
+                    logger.info(f"Job in progress... (Status: {status})")
                     time.sleep(check_interval)
                 else:
-                    logger.warning(f"❓ Unknown status: {status}")
+                    logger.warning(f"Unknown status: {status}")
                     return {
                         'status': 'UNKNOWN',
                         'data': status_data,
@@ -152,10 +154,10 @@ class GenerateVideoClient:
                     }
                     
             except requests.exceptions.RequestException as e:
-                logger.error(f"❌ Status check error: {e}")
+                logger.error(f"Status check error: {e}")
                 time.sleep(check_interval)
         
-        logger.error(f"❌ Job wait timeout ({max_wait_time} seconds)")
+        logger.error(f"Job wait timeout ({max_wait_time} seconds)")
         return {
             'status': 'TIMEOUT',
             'job_id': job_id
@@ -194,42 +196,93 @@ class GenerateVideoClient:
                 f.write(decoded_video)
             
             file_size = os.path.getsize(output_path)
-            logger.info(f"✅ Video saved successfully: {output_path} ({file_size / (1024*1024):.1f}MB)")
+            logger.info(f"Video saved successfully: {output_path} ({file_size / (1024*1024):.1f}MB)")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Video save failed: {e}")
+            logger.error(f"Video save failed: {e}")
             return False
+
+    def normalize_prompts(
+        self,
+        prompts: List[PromptEntry],
+        default_length: Optional[int] = None,
+    ) -> List[List[Union[str, int]]]:
+        """
+        Normalize prompt tuples to the payload format expected by the worker.
+        """
+        normalized: List[List[Union[str, int]]] = []
+        for index, prompt_entry in enumerate(prompts):
+            if not isinstance(prompt_entry, (list, tuple)) or len(prompt_entry) not in (2, 3):
+                raise ValueError(f"prompts[{index}] must be a 2-item or 3-item tuple/list.")
+
+            positive = prompt_entry[0]
+            negative = prompt_entry[1]
+            if not isinstance(positive, str) or not isinstance(negative, str):
+                raise ValueError(f"prompts[{index}] must contain string prompt values.")
+
+            if len(prompt_entry) == 3:
+                if not isinstance(prompt_entry[2], int):
+                    raise ValueError(f"prompts[{index}][2] must be an integer when provided.")
+                normalized.append([positive, negative, prompt_entry[2]])
+            elif default_length is not None:
+                normalized.append([positive, negative, default_length])
+            else:
+                normalized.append([positive, negative])
+        return normalized
+
+    def submit_batch_video_job(
+        self,
+        tasks: List[Dict[str, Any]],
+        seed: int = 2025,
+        frame_rate: int = 24,
+        sampler: str = "euler",
+        steps: int = 4,
+        models: Optional[Dict[str, Any]] = None,
+        extra_options: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        Submit a batch video job using the new tasks-based payload.
+        """
+        input_data: Dict[str, Any] = {
+            "tasks": tasks,
+            "seed": seed,
+            "frame_rate": frame_rate,
+            "sampler": sampler,
+            "steps": steps,
+        }
+        if models is not None:
+            input_data["models"] = models
+        if extra_options:
+            input_data.update(extra_options)
+        return self.submit_job(input_data)
     
     def create_video_from_image(
         self,
         image_path: str,
-        prompt: str = "running man, grab the gun",
-        negative_prompt: Optional[str] = None,
+        prompts: List[PromptEntry],
         width: int = 480,
-        height: int = 832,
+        height: int = 480,
         length: int = 81,
-        steps: int = 10,
-        seed: int = 42,
-        cfg: float = 2.0,
-        context_overlap: int = 48,
-        lora_pairs: Optional[List[Dict[str, Any]]] = None
+        steps: int = 4,
+        seed: int = 2025,
+        cfg: float = 1.0,
+        frame_rate: int = 24,
+        sampler: str = "euler",
+        models: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate video from image
         
         Args:
             image_path: Image file path
-            prompt: Prompt text
-            negative_prompt: Negative prompt to exclude unwanted elements
+            prompts: List of (positive_prompt, negative_prompt) pairs
             width: Output width
             height: Output height
-            length: Number of frames
+            length: Number of frames per sampling stage
             steps: Number of steps
             seed: Seed value
             cfg: CFG scale
-            context_overlap: Context overlap
-            lora_pairs: LoRA settings list (max 4)
         
         Returns:
             Job result dictionary
@@ -243,40 +296,35 @@ class GenerateVideoClient:
         if not image_base64:
             return {"error": "Image base64 encoding failed"}
         
-        # Process LoRA settings
-        if lora_pairs is None:
-            lora_pairs = []
-        
-        # Support up to 4 LoRAs
-        lora_count = min(len(lora_pairs), 4)
-        if len(lora_pairs) > 4:
-            logger.warning(f"LoRA count is {len(lora_pairs)}. Only up to 4 LoRAs are supported. Using first 4 only.")
-            lora_pairs = lora_pairs[:4]
-        
-        # Configure API input data
-        input_data = {
+        task = {
             "image_base64": image_base64,
-            "prompt": prompt,
+            "prompts": self.normalize_prompts(prompts, default_length=length),
+        }
+
+        extra_options = {
             "width": width,
             "height": height,
-            "length": length,
-            "steps": steps,
-            "seed": seed,
             "cfg": cfg,
-            "context_overlap": context_overlap,
-            "lora_pairs": lora_pairs
         }
-        
-        # Add negative_prompt if provided
-        if negative_prompt:
-            input_data["negative_prompt"] = negative_prompt
-        
-        # Submit job and wait
-        job_id = self.submit_job(input_data)
+
+        job_id = self.submit_batch_video_job(
+            tasks=[task],
+            seed=seed,
+            frame_rate=frame_rate,
+            sampler=sampler,
+            steps=steps,
+            models=models,
+            extra_options=extra_options,
+        )
         if not job_id:
             return {"error": "Job submission failed"}
         
         result = self.wait_for_completion(job_id)
+        if result.get("status") == "COMPLETED":
+            output = result.get("output") or {}
+            task_outputs = output.get("tasks")
+            if isinstance(task_outputs, list) and task_outputs:
+                result["output"] = task_outputs[0]
         return result
     
     def batch_process_images(
@@ -284,16 +332,16 @@ class GenerateVideoClient:
         image_folder_path: str,
         output_folder_path: str,
         valid_extensions: tuple = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff'),
-        prompt: str = "running man, grab the gun",
-        negative_prompt: Optional[str] = None,
+        prompts: Optional[List[PromptEntry]] = None,
         width: int = 480,
-        height: int = 832,
+        height: int = 480,
         length: int = 81,
-        steps: int = 10,
-        seed: int = 42,
-        cfg: float = 2.0,
-        context_overlap: int = 48,
-        lora_pairs: Optional[List[Dict[str, Any]]] = None
+        steps: int = 4,
+        seed: int = 2025,
+        cfg: float = 1.0,
+        frame_rate: int = 24,
+        sampler: str = "euler",
+        models: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Batch process all image files in folder
@@ -302,16 +350,13 @@ class GenerateVideoClient:
             image_folder_path: Folder path containing image files
             output_folder_path: Folder path to save results
             valid_extensions: Image file extensions to process
-            prompt: Prompt text
-            negative_prompt: Negative prompt to exclude unwanted elements
+            prompts: List of (positive_prompt, negative_prompt) pairs
             width: Output width
             height: Output height
-            length: Number of frames
+            length: Number of frames per sampling stage
             steps: Number of steps
             seed: Seed value
             cfg: CFG scale
-            context_overlap: Context overlap
-            lora_pairs: LoRA settings list
         
         Returns:
             Batch processing result dictionary
@@ -331,7 +376,10 @@ class GenerateVideoClient:
         
         if not image_files:
             return {"error": f"No image files to process: {image_folder_path}"}
-        
+
+        if prompts is None:
+            prompts = [("running man, grab the gun", "blurry, low quality, distorted")]
+
         logger.info(f"Starting batch processing: {len(image_files)} files")
         
         results = {
@@ -341,63 +389,137 @@ class GenerateVideoClient:
             "results": []
         }
         
-        # Process each image file
+        tasks: List[Dict[str, Any]] = []
+        ordered_files: List[str] = []
         for filename in image_files:
-            logger.info(f"\n==================== Processing started: {filename} ====================")
-            
             image_path = os.path.join(image_folder_path, filename)
-            
-            # Generate video
-            result = self.create_video_from_image(
-                image_path=image_path,
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                width=width,
-                height=height,
-                length=length,
-                steps=steps,
-                seed=seed,
-                cfg=cfg,
-                context_overlap=context_overlap,
-                lora_pairs=lora_pairs
-            )
-            
-            if result.get('status') == 'COMPLETED':
-                # Save result file
-                base_filename = os.path.splitext(filename)[0]
-                output_filename = os.path.join(output_folder_path, f"result_{base_filename}.mp4")
-                
-                if self.save_video_result(result, output_filename):
-                    logger.info(f"✅ [{filename}] Processing completed")
-                    results["successful"] += 1
-                    results["results"].append({
-                        "filename": filename,
-                        "status": "success",
-                        "output_file": output_filename,
-                        "job_id": result.get('job_id')
-                    })
-                else:
-                    logger.error(f"[{filename}] Result save failed")
-                    results["failed"] += 1
-                    results["results"].append({
-                        "filename": filename,
-                        "status": "failed",
-                        "error": "Result save failed",
-                        "job_id": result.get('job_id')
-                    })
-            else:
-                logger.error(f"[{filename}] Job failed: {result.get('error', 'Unknown error')}")
+            image_base64 = self.encode_file_to_base64(image_path)
+            if not image_base64:
+                logger.error(f"[{filename}] Image base64 encoding failed")
                 results["failed"] += 1
                 results["results"].append({
                     "filename": filename,
                     "status": "failed",
-                    "error": result.get('error', 'Unknown error'),
-                    "job_id": result.get('job_id')
+                    "error": "Image base64 encoding failed",
                 })
-            
-            logger.info(f"==================== Processing completed: {filename} ====================")
-        
-        logger.info(f"\n🎉 Batch processing completed: {results['successful']}/{results['total_files']} successful")
+                continue
+
+            tasks.append({
+                "image_base64": image_base64,
+                "prompts": self.normalize_prompts(prompts, default_length=length),
+            })
+            ordered_files.append(filename)
+
+        if not tasks:
+            return results
+
+        extra_options = {
+            "width": width,
+            "height": height,
+            "cfg": cfg,
+        }
+        job_id = self.submit_batch_video_job(
+            tasks=tasks,
+            seed=seed,
+            frame_rate=frame_rate,
+            sampler=sampler,
+            steps=steps,
+            models=models,
+            extra_options=extra_options,
+        )
+        if not job_id:
+            for filename in ordered_files:
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": "Job submission failed",
+                })
+            return results
+
+        result = self.wait_for_completion(job_id)
+        if result.get("status") != "COMPLETED":
+            batch_error = result.get("error", "Unknown error")
+            for filename in ordered_files:
+                logger.error(f"[{filename}] Job failed: {batch_error}")
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": batch_error,
+                    "job_id": result.get("job_id"),
+                })
+            return results
+
+        task_outputs = (result.get("output") or {}).get("tasks")
+        if not isinstance(task_outputs, list):
+            batch_error = "Batch output does not contain a tasks list"
+            for filename in ordered_files:
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": batch_error,
+                    "job_id": result.get("job_id"),
+                })
+            return results
+
+        for filename, task_output in zip(ordered_files, task_outputs):
+            if not isinstance(task_output, dict):
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": "Invalid task output",
+                    "job_id": result.get("job_id"),
+                })
+                continue
+
+            if task_output.get("error"):
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": task_output["error"],
+                    "job_id": result.get("job_id"),
+                })
+                continue
+
+            base_filename = os.path.splitext(filename)[0]
+            output_filename = os.path.join(output_folder_path, f"result_{base_filename}.mp4")
+            single_result = {
+                "status": "COMPLETED",
+                "output": task_output,
+                "job_id": result.get("job_id"),
+            }
+            if self.save_video_result(single_result, output_filename):
+                results["successful"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "success",
+                    "output_file": output_filename,
+                    "job_id": result.get("job_id"),
+                })
+            else:
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": "Result save failed",
+                    "job_id": result.get("job_id"),
+                })
+
+        if len(task_outputs) < len(ordered_files):
+            for filename in ordered_files[len(task_outputs):]:
+                results["failed"] += 1
+                results["results"].append({
+                    "filename": filename,
+                    "status": "failed",
+                    "error": "Batch output missing task result",
+                    "job_id": result.get("job_id"),
+                })
+
+        logger.info(f"\nBatch processing completed: {results['successful']}/{results['total_files']} successful")
         return results
 
 
@@ -420,14 +542,22 @@ def main():
     print("1. Single image processing")
     result1 = client.create_video_from_image(
         image_path="./example_image.png",
-        prompt="running man, grab the gun",
-        negative_prompt="blurry, low quality, distorted",
+        prompts=[
+            (
+                "The woman drives the luxury convertible car through a tropical mountainous valley during sunset. The camera follows close behind the car as it speeds down the road.",
+                "blurry, low quality, distorted",
+            ),
+            (
+                "The woman turns the car right down another road and quickly accelerates away. The camera follows close behind the car.",
+                "blurry, low quality, distorted",
+            ),
+        ],
         width=480,
-        height=832,
+        height=480,
         length=81,
-        steps=10,
+        steps=4,
         seed=42,
-        cfg=2.0
+        cfg=1.0
     )
     
     if result1.get('status') == 'COMPLETED':
@@ -437,28 +567,22 @@ def main():
     
     print("\n" + "-"*50 + "\n")
     
-    # Example 2: Processing with LoRA
-    print("2. Processing with LoRA")
-    lora_pairs = [
-        {
-            "high": "your_high_lora.safetensors",
-            "low": "your_low_lora.safetensors",
-            "high_weight": 1.0,
-            "low_weight": 1.0
-        }
-    ]
-    
+    # Example 2: Single-stage generation
+    print("2. Single-stage generation")
     result2 = client.create_video_from_image(
         image_path="./example_image.png",
-        prompt="running man, grab the gun",
-        negative_prompt="blurry, low quality, distorted",
+        prompts=[
+            (
+                "A cinematic close-up of a runner sprinting through a neon-lit alley at night.",
+                "blurry, low quality, distorted",
+            )
+        ],
         width=480,
-        height=832,
+        height=480,
         length=81,
-        steps=10,
+        steps=4,
         seed=42,
-        cfg=2.0,
-        lora_pairs=lora_pairs
+        cfg=1.0,
     )
     
     if result2.get('status') == 'COMPLETED':
@@ -473,13 +597,13 @@ def main():
     # batch_result = client.batch_process_images(
     #     image_folder_path="./input_images",
     #     output_folder_path="./output_videos",
-    #     prompt="running man, grab the gun",
+    #     prompts=[("running man, grab the gun", "blurry, low quality, distorted")],
     #     width=480,
-    #     height=832,
+    #     height=480,
     #     length=81,
-    #     steps=10,
+    #     steps=4,
     #     seed=42,
-    #     cfg=2.0
+    #     cfg=1.0
     # )
     
     # print(f"Batch processing result: {batch_result}")

@@ -1,12 +1,39 @@
 {
   "tests": [
     {
-      "name": "validation_text_input",
+      "name": "batch_video_generation",
       "input": {
-        "text": "Hello world",
-        "language": "en"
+        "tasks": [
+          {
+            "prompts": [
+              [
+                "running man, grab the gun",
+                "blurry, low quality, distorted"
+              ],
+              [
+                "the man keeps running toward the camera",
+                "blurry, low quality, distorted",
+                97
+              ]
+            ],
+            "ouput_video": "/tmp/runpod-tests/task_01/output.mp4"
+          },
+          {
+            "prompts": [
+              [
+                "the man turns and runs away from camera",
+                "blurry, low quality, distorted"
+              ]
+            ],
+            "ouput_video": "/tmp/runpod-tests/task_02/output.mp4"
+          }
+        ],
+        "seed": 2025,
+        "frame_rate": 24,
+        "sampler": "euler",
+        "steps": 4
       },
-      "timeout": 10000
+      "timeout": 1800000
     }
   ],
   "config": {
