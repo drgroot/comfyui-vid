@@ -5,7 +5,7 @@ set -e
 
 # Start ComfyUI in the background.
 echo "Starting ComfyUI in the background..."
-python /ComfyUI/main.py --listen --use-sage-attention &
+${COMFYUI_VENV_PYTHON:-python} ${COMFYUI_DIR:-/opt/ComfyUI}/main.py --listen --use-sage-attention &
 comfyui_pid=$!
 
 # Wait for ComfyUI to be ready.

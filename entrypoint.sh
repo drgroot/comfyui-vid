@@ -5,7 +5,7 @@ set -e
 
 # Start ComfyUI in the background
 echo "Starting ComfyUI in the background..."
-python /ComfyUI/main.py --listen --use-sage-attention &
+${COMFYUI_VENV_PYTHON:-python} ${COMFYUI_DIR:-/opt/ComfyUI}/main.py --listen --use-sage-attention &
 
 # Wait for ComfyUI to be ready
 echo "Waiting for ComfyUI to be ready..."
@@ -29,4 +29,4 @@ fi
 # Start the handler in the foreground.
 # This script becomes the container's main process.
 echo "Starting the handler..."
-exec python handler.py
+exec ${COMFYUI_VENV_PYTHON:-python} handler.py
