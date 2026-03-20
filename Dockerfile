@@ -41,7 +41,8 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     pip install -r requirements.txt
     
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/orssorbit/ComfyUI-wanBlockswap
+    git clone https://github.com/orssorbit/ComfyUI-wanBlockswap && \
+    git clone https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF.git
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
     git clone https://github.com/kijai/ComfyUI-WanVideoWrapper && \
