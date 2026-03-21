@@ -57,6 +57,64 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     cd ComfyUI-AdaptiveWindowSize/ComfyUI-AdaptiveWindowSize && \
     mv * ../
 
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack && \
+    cd ComfyUI-Impact-Pack && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/ltdrdata/ComfyUI-Impact-Subpack && \
+    cd ComfyUI-Impact-Subpack && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/brianfitzgerald/style_aligned_comfy && \
+    cd style_aligned_comfy && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/MoonGoblinDev/Civicomfy && \
+    cd Civicomfy && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/Fannovel16/comfyui_controlnet_aux && \
+    cd comfyui_controlnet_aux && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/storyicon/comfyui_segment_anything && \
+    cd comfyui_segment_anything && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/yolain/ComfyUI-Easy-Use && \
+    cd ComfyUI-Easy-Use && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/neeltheninja/ComfyUI-ComfyEnhancedMultiRegion
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/PozzettiAndrea/ComfyUI-SAM3 && \
+    cd ComfyUI-SAM3 && \
+    pip install -r requirements.txt
+
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/filliptm/ComfyUI-FL-Qwen3TTS && \
+    cd ComfyUI-FL-Qwen3TTS && \
+    pip install -r requirements.txt
+
+# Patch ComfyUI-Impact-Pack to handle ComfyUI versions that expose SCHEDULER_NAMES
+# instead of SCHEDULER_HANDLERS (compatibility fix for newer ComfyUI releases).
+RUN python3 -c "\
+import os; from pathlib import Path; \
+path = Path(os.environ.get('COMFYUI_DIR', '/ComfyUI')) / 'custom_nodes/ComfyUI-Impact-Pack/modules/impact/core.py'; \
+text = path.read_text(encoding='utf-8') if path.is_file() else None; \
+old = 'def get_schedulers():\n    return list(comfy.samplers.SCHEDULER_HANDLERS) + ADDITIONAL_SCHEDULERS\n'; \
+new = 'def get_schedulers():\n    handlers = getattr(comfy.samplers, \"SCHEDULER_HANDLERS\", None)\n    if handlers is None:\n        names = getattr(comfy.samplers, \"SCHEDULER_NAMES\", [])\n        return list(names) + ADDITIONAL_SCHEDULERS\n    return list(handlers) + ADDITIONAL_SCHEDULERS\n'; \
+(text is not None and old in text) and path.write_text(text.replace(old, new), encoding='utf-8')"
+
 COPY . .
 COPY extra_model_paths.yaml ${COMFYUI_DIR}/extra_model_paths.yaml
 RUN chmod +x /entrypoint.sh
