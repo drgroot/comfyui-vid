@@ -68,9 +68,7 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     pip install -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/brianfitzgerald/style_aligned_comfy && \
-    cd style_aligned_comfy && \
-    pip install -r requirements.txt
+    git clone https://github.com/brianfitzgerald/style_aligned_comfy
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
     git clone https://github.com/MoonGoblinDev/Civicomfy && \
