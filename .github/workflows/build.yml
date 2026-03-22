@@ -1,4 +1,4 @@
-name: Build and push Docker image to Docker Hub
+name: Build
 
 on:
   workflow_dispatch: 
@@ -27,3 +27,5 @@ jobs:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: yusufali/comfyui-vid:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
