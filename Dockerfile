@@ -71,9 +71,7 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     git clone https://github.com/brianfitzgerald/style_aligned_comfy
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/MoonGoblinDev/Civicomfy && \
-    cd Civicomfy && \
-    pip install -r requirements.txt
+    git clone https://github.com/MoonGoblinDev/Civicomfy
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
     git clone https://github.com/Fannovel16/comfyui_controlnet_aux && \
