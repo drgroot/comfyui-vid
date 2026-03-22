@@ -101,6 +101,11 @@ RUN cd "$COMFYUI_DIR/custom_nodes" && \
     cd ComfyUI-FL-Qwen3TTS && \
     pip install -r requirements.txt
 
+RUN cd "$COMFYUI_DIR/custom_nodes" && \
+    git clone https://github.com/Lightricks/ComfyUI-LTXVideo && \
+    cd ComfyUI-LTXVideo && \
+    pip install -r requirements.txt
+
 # Patch ComfyUI-Impact-Pack to handle ComfyUI versions that expose SCHEDULER_NAMES
 # instead of SCHEDULER_HANDLERS (compatibility fix for newer ComfyUI releases).
 RUN python3 -c "\
