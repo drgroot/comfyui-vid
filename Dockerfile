@@ -41,18 +41,23 @@ RUN python3 -m pip install --no-cache-dir \
 
 RUN python3 -m pip install --no-cache-dir \
         "huggingface_hub[hf_transfer]" \
+        accelerate \
         color-matcher \
+        diffusers \
         dill \
         einops \
-        "gguf>=0.13.0" \
+        ftfy \
+        "gguf>=0.17.1" \
         imageio-ffmpeg \
         kornia \
         matplotlib \
         mss \
         opencv-python-headless \
+        "peft>=0.17.0" \
         "pillow>=10.3.0" \
         piexif \
         protobuf \
+        pyloudnorm \
         pyyaml \
         runpod \
         scipy \
@@ -75,6 +80,7 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/ltdrdata/ComfyUI-Impact-Subpack "$COMFYUI_DIR/custom_nodes/ComfyUI-Impact-Subpack" && \
     git clone $GIT_CLONE_FLAGS https://github.com/storyicon/comfyui_segment_anything "$COMFYUI_DIR/custom_nodes/comfyui_segment_anything" && \
     git clone $GIT_CLONE_FLAGS https://github.com/cubiq/ComfyUI_essentials "$COMFYUI_DIR/custom_nodes/ComfyUI_essentials" && \
+    git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-WanVideoWrapper "$COMFYUI_DIR/custom_nodes/ComfyUI-WanVideoWrapper" && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
