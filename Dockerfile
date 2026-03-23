@@ -54,7 +54,6 @@ RUN python3 -m pip install --no-cache-dir \
         piexif \
         protobuf \
         pyyaml \
-        runpod \
         scipy \
         scikit-image \
         sentencepiece \
