@@ -47,4 +47,12 @@ elif [ "${COMFYUI_USE_SAGE_ATTENTION}" = "1" ] || [ "${COMFYUI_USE_SAGE_ATTENTIO
     comfyui_args+=(--use-sage-attention)
 fi
 
+if [ "${COMFYUI_FORCE_CPU:-auto}" = "auto" ]; then
+    if ! python3 -c "import torch; raise SystemExit(0 if torch.cuda.is_available() else 1)"; then
+        comfyui_args+=(--cpu)
+    fi
+elif [ "${COMFYUI_FORCE_CPU}" = "1" ] || [ "${COMFYUI_FORCE_CPU}" = "true" ]; then
+    comfyui_args+=(--cpu)
+fi
+
 exec python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}"

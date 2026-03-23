@@ -82,6 +82,6 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
 
 COPY . .
 COPY extra_model_paths.yaml ${COMFYUI_DIR}/extra_model_paths.yaml
-RUN chmod +x /entrypoint.sh /entrypoint-ui.sh
+RUN chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]

@@ -20,7 +20,7 @@ These cover the workflows currently referenced in this repo, including Wan image
 - The default command launches ComfyUI on `0.0.0.0:8188`
 - Models live under `/workspace/ComfyUI/models`
 - Outputs are written under `/workspace/comfyui-vid-runs`
-- `entrypoint.sh` and `entrypoint-ui.sh` both start ComfyUI directly
+- `entrypoint.sh` starts ComfyUI directly
 
 ## Build
 
