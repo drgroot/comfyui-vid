@@ -1,0 +1,8 @@
+.git
+.github
+.runpod
+README.md
+example_image.png
+generate_video_client.py
+__pycache__/
+*.pyc
