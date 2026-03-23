@@ -38,9 +38,18 @@ fi
 mkdir -p "${COMFYUI_DIR}/output"
 ln -s "$WORKSPACE_RUNS_DIR" "$COMFYUI_RUNS_DIR"
 
+comfyui_args=(--listen)
+if [ "${COMFYUI_USE_SAGE_ATTENTION:-auto}" = "auto" ]; then
+    if python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('sageattention') else 1)"; then
+        comfyui_args+=(--use-sage-attention)
+    fi
+elif [ "${COMFYUI_USE_SAGE_ATTENTION}" = "1" ] || [ "${COMFYUI_USE_SAGE_ATTENTION}" = "true" ]; then
+    comfyui_args+=(--use-sage-attention)
+fi
+
 # Start ComfyUI in the background.
 echo "Starting ComfyUI in the background..."
-python3 "$COMFYUI_DIR/main.py" --listen --use-sage-attention &
+python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}" &
 comfyui_pid=$!
 
 # Wait for ComfyUI to be ready.
