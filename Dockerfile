@@ -5,101 +5,104 @@ FROM wlsdml1114/engui_genai-base_blackwell:1.1 as runtime
 
 ENV COMFYUI_DIR=/ComfyUI
 ENV WORKSPACE_COMFYUI_DIR=/workspace/ComfyUI
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV GIT_CLONE_FLAGS="--depth 1"
 
-RUN pip install -U "huggingface_hub[hf_transfer]"
-RUN pip install runpod websocket-client
+RUN pip install -U --no-cache-dir "huggingface_hub[hf_transfer]"
+RUN pip install --no-cache-dir runpod websocket-client
 
 WORKDIR /
 
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR" && \
+RUN git clone $GIT_CLONE_FLAGS https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR" && \
     cd "$COMFYUI_DIR" && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Comfy-Org/ComfyUI-Manager.git && \
     cd ComfyUI-Manager && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
     
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/city96/ComfyUI-GGUF && \
+    git clone $GIT_CLONE_FLAGS https://github.com/city96/ComfyUI-GGUF && \
     cd ComfyUI-GGUF && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/kijai/ComfyUI-KJNodes && \
+    git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-KJNodes && \
     cd ComfyUI-KJNodes && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite && \
     cd ComfyUI-VideoHelperSuite && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
     
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/kael558/ComfyUI-GGUF-FantasyTalking && \
+    git clone $GIT_CLONE_FLAGS https://github.com/kael558/ComfyUI-GGUF-FantasyTalking && \
     cd ComfyUI-GGUF-FantasyTalking && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
     
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/orssorbit/ComfyUI-wanBlockswap && \
-    git clone https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF.git
+    git clone $GIT_CLONE_FLAGS https://github.com/orssorbit/ComfyUI-wanBlockswap && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF.git
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper && \
+    git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-WanVideoWrapper && \
     cd ComfyUI-WanVideoWrapper && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
     
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/eddyhhlure1Eddy/IntelligentVRAMNode && \
-    git clone https://github.com/eddyhhlure1Eddy/auto_wan2.2animate_freamtowindow_server && \
-    git clone https://github.com/eddyhhlure1Eddy/ComfyUI-AdaptiveWindowSize && \
+    git clone $GIT_CLONE_FLAGS https://github.com/eddyhhlure1Eddy/IntelligentVRAMNode && \
+    git clone $GIT_CLONE_FLAGS https://github.com/eddyhhlure1Eddy/auto_wan2.2animate_freamtowindow_server && \
+    git clone $GIT_CLONE_FLAGS https://github.com/eddyhhlure1Eddy/ComfyUI-AdaptiveWindowSize && \
     cd ComfyUI-AdaptiveWindowSize/ComfyUI-AdaptiveWindowSize && \
     mv * ../
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/ltdrdata/ComfyUI-Impact-Pack && \
+    git clone $GIT_CLONE_FLAGS https://github.com/ltdrdata/ComfyUI-Impact-Pack && \
     cd ComfyUI-Impact-Pack && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/ltdrdata/ComfyUI-Impact-Subpack && \
+    git clone $GIT_CLONE_FLAGS https://github.com/ltdrdata/ComfyUI-Impact-Subpack && \
     cd ComfyUI-Impact-Subpack && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/brianfitzgerald/style_aligned_comfy
+    git clone $GIT_CLONE_FLAGS https://github.com/brianfitzgerald/style_aligned_comfy
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/MoonGoblinDev/Civicomfy
+    git clone $GIT_CLONE_FLAGS https://github.com/MoonGoblinDev/Civicomfy
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/Fannovel16/comfyui_controlnet_aux && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Fannovel16/comfyui_controlnet_aux && \
     cd comfyui_controlnet_aux && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/storyicon/comfyui_segment_anything && \
+    git clone $GIT_CLONE_FLAGS https://github.com/storyicon/comfyui_segment_anything && \
     cd comfyui_segment_anything && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/yolain/ComfyUI-Easy-Use && \
+    git clone $GIT_CLONE_FLAGS https://github.com/yolain/ComfyUI-Easy-Use && \
     cd ComfyUI-Easy-Use && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/neeltheninja/ComfyUI-ComfyEnhancedMultiRegion
+    git clone $GIT_CLONE_FLAGS https://github.com/neeltheninja/ComfyUI-ComfyEnhancedMultiRegion
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/PozzettiAndrea/ComfyUI-SAM3 && \
+    git clone $GIT_CLONE_FLAGS https://github.com/PozzettiAndrea/ComfyUI-SAM3 && \
     cd ComfyUI-SAM3 && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 RUN cd "$COMFYUI_DIR/custom_nodes" && \
-    git clone https://github.com/filliptm/ComfyUI-FL-Qwen3TTS && \
+    git clone $GIT_CLONE_FLAGS https://github.com/filliptm/ComfyUI-FL-Qwen3TTS && \
     cd ComfyUI-FL-Qwen3TTS && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # Patch ComfyUI-Impact-Pack to handle ComfyUI versions that expose SCHEDULER_NAMES
 # instead of SCHEDULER_HANDLERS (compatibility fix for newer ComfyUI releases).
