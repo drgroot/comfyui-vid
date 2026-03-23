@@ -47,30 +47,4 @@ elif [ "${COMFYUI_USE_SAGE_ATTENTION}" = "1" ] || [ "${COMFYUI_USE_SAGE_ATTENTIO
     comfyui_args+=(--use-sage-attention)
 fi
 
-# Start ComfyUI in the background
-echo "Starting ComfyUI in the background..."
-python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}" &
-
-# Wait for ComfyUI to be ready
-echo "Waiting for ComfyUI to be ready..."
-max_wait=120  # Wait up to 2 minutes
-wait_count=0
-while [ $wait_count -lt $max_wait ]; do
-    if curl -s http://127.0.0.1:8188/ > /dev/null 2>&1; then
-        echo "ComfyUI is ready!"
-        break
-    fi
-    echo "Waiting for ComfyUI... ($wait_count/$max_wait)"
-    sleep 2
-    wait_count=$((wait_count + 2))
-done
-
-if [ $wait_count -ge $max_wait ]; then
-    echo "Error: ComfyUI failed to start within $max_wait seconds"
-    exit 1
-fi
-
-# Start the handler in the foreground.
-# This script becomes the container's main process.
-echo "Starting the handler..."
-exec python3 handler.py
+exec python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}"

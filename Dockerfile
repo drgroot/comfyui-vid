@@ -59,7 +59,6 @@ RUN python3 -m pip install --no-cache-dir \
         protobuf \
         pyloudnorm \
         pyyaml \
-        runpod \
         scipy \
         scikit-image \
         sentencepiece \
