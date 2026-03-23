@@ -8,11 +8,17 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV GIT_CLONE_FLAGS="--depth 1"
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 
 WORKDIR /
 
-RUN apt-get update && \
+RUN if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
+        sed -i 's/^Components: main$/Components: main universe/' /etc/apt/sources.list.d/ubuntu.sources; \
+    fi && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
+        build-essential \
         ca-certificates \
         curl \
         ffmpeg \
@@ -20,17 +26,20 @@ RUN apt-get update && \
         libgl1 \
         libglib2.0-0 \
         python3 \
-        python3-pip \
+        python3-dev \
+        python3-venv \
+        pkg-config \
         wget && \
-    ln -sf /usr/bin/python3 /usr/local/bin/python && \
-    ln -sf /usr/bin/pip3 /usr/local/bin/pip && \
-    python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel && \
-    python3 -m pip install --no-cache-dir \
+    /usr/bin/python3 -m venv "$VIRTUAL_ENV" && \
+    "$VIRTUAL_ENV/bin/pip" install --upgrade --no-cache-dir pip setuptools wheel
+
+RUN python3 -m pip install --no-cache-dir \
+        --extra-index-url https://download.pytorch.org/whl/cu128 \
         torch==2.8.0 \
         torchvision==0.23.0 \
-        torchaudio==2.8.0 \
-        --index-url https://download.pytorch.org/whl/cu128 && \
-    python3 -m pip install --no-cache-dir \
+        torchaudio==2.8.0
+
+RUN python3 -m pip install --no-cache-dir \
         "huggingface_hub[hf_transfer]" \
         color-matcher \
         dill \
@@ -53,10 +62,12 @@ RUN apt-get update && \
         timm \
         transformers \
         "ultralytics>=8.3.162" \
-        websocket-client && \
-    git clone $GIT_CLONE_FLAGS https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR" && \
-    python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/requirements.txt" && \
-    mkdir -p "$COMFYUI_DIR/custom_nodes" && \
+        websocket-client
+
+RUN git clone $GIT_CLONE_FLAGS https://github.com/comfyanonymous/ComfyUI.git "$COMFYUI_DIR" && \
+    python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/requirements.txt"
+
+RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/city96/ComfyUI-GGUF "$COMFYUI_DIR/custom_nodes/ComfyUI-GGUF" && \
     git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-KJNodes "$COMFYUI_DIR/custom_nodes/ComfyUI-KJNodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite "$COMFYUI_DIR/custom_nodes/ComfyUI-VideoHelperSuite" && \
@@ -67,7 +78,7 @@ RUN apt-get update && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
-    apt-get purge -y --auto-remove git python3-pip && \
+    apt-get purge -y --auto-remove build-essential git pkg-config python3-dev python3-venv && \
     rm -rf /root/.cache /var/lib/apt/lists/*
 
 COPY . .
