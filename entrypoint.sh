@@ -10,6 +10,13 @@ if [ -n "${MY_SSH_PUB}" ]; then
     chmod 600 /root/.ssh/authorized_keys
 fi
 
+if [ -n "${RCLONE_CONFIG}" ]; then
+    mkdir -p /root/.config/rclone
+    chmod 700 /root/.config/rclone
+    printf '%s' "${RCLONE_CONFIG}" > /root/.config/rclone/rclone.conf
+    chmod 600 /root/.config/rclone/rclone.conf
+fi
+
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
 COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
