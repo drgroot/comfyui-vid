@@ -33,7 +33,7 @@ elif [ -d "$COMFYUI_MODELS_DIR" ]; then
     rm -rf "$COMFYUI_MODELS_DIR"
 fi
 
-# ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
+ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
 
 COMFYUI_RUNS_DIR="${COMFYUI_DIR}/output/comfyui-vid-runs"
 WORKSPACE_RUNS_DIR="/workspace/comfyui-vid-runs"
