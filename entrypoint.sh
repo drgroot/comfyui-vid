@@ -3,6 +3,13 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+if [ -n "${MY_SSH_PUB}" ]; then
+    mkdir -p /root/.ssh
+    chmod 700 /root/.ssh
+    echo "${MY_SSH_PUB}" >> /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+fi
+
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
 COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
