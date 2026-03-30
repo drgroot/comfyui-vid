@@ -29,6 +29,7 @@ RUN if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
         python3-dev \
         python3-venv \
         pkg-config \
+        rclone \
         wget && \
     /usr/bin/python3 -m venv "$VIRTUAL_ENV" && \
     "$VIRTUAL_ENV/bin/pip" install --upgrade --no-cache-dir pip setuptools wheel
