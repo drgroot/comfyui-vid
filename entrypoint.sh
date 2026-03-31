@@ -10,10 +10,10 @@ if [ -n "${MY_SSH_PUB}" ]; then
     chmod 600 /root/.ssh/authorized_keys
 fi
 
-if [ -n "${RCLONE_CONFIG}" ]; then
+if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     mkdir -p /root/.config/rclone
     chmod 700 /root/.config/rclone
-    printf '%s' "${RCLONE_CONFIG}" > /root/.config/rclone/rclone.conf
+    printf '%s' "${SECRET_RCLONE_CONFIG}" > /root/.config/rclone/rclone.conf
     chmod 600 /root/.config/rclone/rclone.conf
 fi
 
