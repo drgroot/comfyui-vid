@@ -17,6 +17,28 @@ if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     chmod 600 /root/.config/rclone/rclone.conf
 fi
 
+if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
+    echo "Downloading models from remote storage..." >&2
+    IFS=',' read -ra _model_files <<< "${DOWNLOAD_MODELS}"
+    for _model_file in "${_model_files[@]}"; do
+        _model_file=$(echo "$_model_file" | xargs)
+        [ -z "$_model_file" ] && continue
+        _dest_dir="/ComfyUI/models/$(dirname "$_model_file")"
+        mkdir -p "$_dest_dir"
+        echo "Downloading: $_model_file" >&2
+        if ! rclone copy \
+            --multi-thread-streams=8 \
+            --buffer-size=256M \
+            --s3-chunk-size=128M \
+            --transfers=1 \
+            --fast-list \
+            --progress \
+            "b2:/comfyui/models/$_model_file" "$_dest_dir"; then
+            echo "Warning: Failed to download $_model_file" >&2
+        fi
+    done
+fi
+
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
 COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
