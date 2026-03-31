@@ -49,16 +49,16 @@ COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
 
 mkdir -p "$WORKSPACE_MODELS_DIR"/{checkpoints,loras,text_encoders,vae}
 
-if [ -L "$COMFYUI_MODELS_DIR" ]; then
-    rm -f "$COMFYUI_MODELS_DIR"
-elif [ -d "$COMFYUI_MODELS_DIR" ]; then
-    if find "$COMFYUI_MODELS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
-        cp -a "$COMFYUI_MODELS_DIR"/. "$WORKSPACE_MODELS_DIR"/
-    fi
-    rm -rf "$COMFYUI_MODELS_DIR"
-fi
+# if [ -L "$COMFYUI_MODELS_DIR" ]; then
+#     rm -f "$COMFYUI_MODELS_DIR"
+# elif [ -d "$COMFYUI_MODELS_DIR" ]; then
+#     if find "$COMFYUI_MODELS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+#         cp -a "$COMFYUI_MODELS_DIR"/. "$WORKSPACE_MODELS_DIR"/
+#     fi
+#     rm -rf "$COMFYUI_MODELS_DIR"
+# fi
 
-ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
+# ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
 
 COMFYUI_RUNS_DIR="${COMFYUI_DIR}/output/comfyui-vid-runs"
 WORKSPACE_RUNS_DIR="/workspace/comfyui-vid-runs"
