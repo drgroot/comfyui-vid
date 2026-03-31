@@ -21,6 +21,9 @@ COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
 COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
 WORKSPACE_MODELS_DIR="${WORKSPACE_COMFYUI_DIR}/models"
+COMFYUI_SYNC_SERVER_HOST="${COMFYUI_SYNC_SERVER_HOST:-0.0.0.0}"
+COMFYUI_SYNC_SERVER_PORT="${COMFYUI_SYNC_SERVER_PORT:-8189}"
+COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
 
 mkdir -p "$WORKSPACE_MODELS_DIR"/{checkpoints,loras,text_encoders,vae}
 
@@ -67,6 +70,11 @@ if [ "${COMFYUI_FORCE_CPU:-auto}" = "auto" ]; then
     fi
 elif [ "${COMFYUI_FORCE_CPU}" = "1" ] || [ "${COMFYUI_FORCE_CPU}" = "true" ]; then
     comfyui_args+=(--cpu)
+fi
+
+if [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "1" ] || [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "true" ]; then
+    python3 /workspace_sync_server.py &
+    echo "Started workspace sync server on ${COMFYUI_SYNC_SERVER_HOST}:${COMFYUI_SYNC_SERVER_PORT}" >&2
 fi
 
 exec python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}"
