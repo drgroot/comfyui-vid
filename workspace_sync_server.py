@@ -14,7 +14,7 @@ RCLONE_REMOTE = os.environ.get("COMFYUI_SYNC_RCLONE_REMOTE", "b2")
 SERVER_HOST = os.environ.get("COMFYUI_SYNC_SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.environ.get("COMFYUI_SYNC_SERVER_PORT", "8189"))
 MAX_JOBS = int(os.environ.get("COMFYUI_SYNC_MAX_JOBS", "3"))
-WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_COMFYUI_DIR", "/workspace/ComfyUI")).resolve()
+WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_COMFYUI_DIR", "/ComfyUI")).resolve()
 
 RCLONE_FLAGS = [
     "--checkers=4",
@@ -54,7 +54,7 @@ def _copy_one(file_name: str) -> dict:
         return {"file": file_name, "status": "skipped", "detail": "already exists"}
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    remote_path = f"{RCLONE_REMOTE}:{relative_path.as_posix()}"
+    remote_path = f"{RCLONE_REMOTE}:comfyui/{relative_path.as_posix()}"
     command = ["rclone", "copyto", *RCLONE_FLAGS, remote_path, str(destination)]
 
     completed = subprocess.run(
