@@ -14,7 +14,7 @@ RCLONE_REMOTE = os.environ.get("COMFYUI_SYNC_RCLONE_REMOTE", "b2")
 SERVER_HOST = os.environ.get("COMFYUI_SYNC_SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.environ.get("COMFYUI_SYNC_SERVER_PORT", "8189"))
 MAX_JOBS = int(os.environ.get("COMFYUI_SYNC_MAX_JOBS", "3"))
-WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_COMFYUI_DIR", "/ComfyUI")).resolve()
+WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_COMFYUI_DIRADADS", "/ComfyUI")).resolve()
 
 RCLONE_FLAGS = [
     "--checkers=4",
