@@ -25,17 +25,17 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
         [ -z "$_model_file" ] && continue
         _dest_dir="/ComfyUI/models/$(dirname "$_model_file")"
         mkdir -p "$_dest_dir"
-        echo "Downloading: $_model_file" >&2
-        if ! rclone copy \
-            --multi-thread-streams=8 \
-            --buffer-size=256M \
-            --s3-chunk-size=128M \
-            --transfers=1 \
-            --fast-list \
-            --progress \
-            "b2:/comfyui/models/$_model_file" "$_dest_dir"; then
+        echo "Downloading in background: $_model_file" >&2
+        (
+            rclone copy \
+                --multi-thread-streams=8 \
+                --buffer-size=256M \
+                --s3-chunk-size=128M \
+                --transfers=1 \
+                --fast-list \
+                "b2:/comfyui/models/$_model_file" "$_dest_dir" || \
             echo "Warning: Failed to download $_model_file" >&2
-        fi
+        ) &
     done
 fi
 
