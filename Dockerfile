@@ -82,6 +82,8 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/cubiq/ComfyUI_essentials "$COMFYUI_DIR/custom_nodes/ComfyUI_essentials" && \
     git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-WanVideoWrapper "$COMFYUI_DIR/custom_nodes/ComfyUI-WanVideoWrapper" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF "$COMFYUI_DIR/custom_nodes/ComfyUI-Wan-SVI2Pro-FLF" && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Fannovel16/comfyui_controlnet_aux "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux" && \
+    python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux/requirements.txt" && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
