@@ -12,6 +12,7 @@ This repository builds a ComfyUI container focused on the workflows in `basic.js
 - `ComfyUI-Impact-Subpack`
 - `comfyui_segment_anything`
 - `ComfyUI_essentials`
+- [OneTrainer](https://github.com/Nerogar/OneTrainer) (CLI only)
 
 These cover the workflows currently referenced in this repo, including Wan image-to-video, T2I, I2I, and SAM-related flows.
 
@@ -76,6 +77,34 @@ The container expects the usual ComfyUI model directories under `/workspace/Comf
 - `text_encoders`
 - `upscale_models`
 - `vae`
+
+## OneTrainer CLI
+
+OneTrainer is installed in a dedicated venv at `/opt/onetrainer-venv` with its source at `/OneTrainer`.
+The following wrapper scripts are available on `PATH`:
+
+| Command | Script |
+|---|---|
+| `onetrainer-train` | `scripts/train.py` |
+| `onetrainer-convert_model` | `scripts/convert_model.py` |
+| `onetrainer-sample` | `scripts/sample.py` |
+| `onetrainer-create_train_files` | `scripts/create_train_files.py` |
+| `onetrainer-generate_captions` | `scripts/generate_captions.py` |
+| `onetrainer-generate_masks` | `scripts/generate_masks.py` |
+| `onetrainer-calculate_loss` | `scripts/calculate_loss.py` |
+
+Example:
+
+```bash
+onetrainer-train -h
+onetrainer-train --config /workspace/my_training_config.json
+```
+
+To call a script directly:
+
+```bash
+/opt/onetrainer-venv/bin/python /OneTrainer/scripts/train.py -h
+```
 
 ## Files
 

@@ -10,6 +10,8 @@ ENV PYTHONUNBUFFERED=1
 ENV GIT_CLONE_FLAGS="--depth 1"
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
+ENV ONETRAINER_DIR=/OneTrainer
+ENV ONETRAINER_VENV=/opt/onetrainer-venv
 
 WORKDIR /
 
@@ -87,6 +89,18 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Nerogar/OneTrainer.git "$ONETRAINER_DIR" && \
+    python3 -m venv "$ONETRAINER_VENV" && \
+    "$ONETRAINER_VENV/bin/pip" install --upgrade --no-cache-dir pip setuptools wheel && \
+    "$ONETRAINER_VENV/bin/pip" install --no-cache-dir \
+        --extra-index-url https://download.pytorch.org/whl/cu128 \
+        -r "$ONETRAINER_DIR/requirements.txt" && \
+    for script in train convert_model sample create_train_files generate_captions generate_masks calculate_loss; do \
+        printf '#!/bin/sh\ncd %s\nexec %s/bin/python scripts/%s.py "$@"\n' \
+            "$ONETRAINER_DIR" "$ONETRAINER_VENV" "$script" \
+            > "/usr/local/bin/onetrainer-${script}" && \
+        chmod +x "/usr/local/bin/onetrainer-${script}"; \
+    done && \
     apt-get purge -y --auto-remove build-essential git pkg-config python3-dev python3-venv && \
     rm -rf /root/.cache /var/lib/apt/lists/*
 
