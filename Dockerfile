@@ -25,6 +25,7 @@ RUN if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
         curl \
         ffmpeg \
         git \
+        tmux \
         libgl1 \
         libglib2.0-0 \
         python3 \
