@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Upload .safetensors files from /ComfyUI/models/loras to the equivalent
-# location in Cloudflare S3 using rclone.
+# location in the configured rclone remote (e.g. Cloudflare R2 or Backblaze B2).
 #
 # Usage: ./upload_loras.sh
 #
@@ -9,8 +9,12 @@
 #           an existing /root/.config/rclone/rclone.conf file).
 #
 # Optional environment variables:
-#   RCLONE_REMOTE      - rclone remote name (default: b2)
-#   COMFYUI_DIR        - path to ComfyUI installation (default: /ComfyUI)
+#   RCLONE_REMOTE              - rclone remote name (default: b2)
+#   COMFYUI_DIR                - path to ComfyUI installation (default: /ComfyUI)
+#   RCLONE_MULTI_THREAD_STREAMS - number of multi-thread streams (default: 8)
+#   RCLONE_BUFFER_SIZE         - rclone buffer size (default: 256M)
+#   RCLONE_S3_CHUNK_SIZE       - S3 upload chunk size (default: 128M)
+#   RCLONE_TRANSFERS           - number of parallel file transfers (default: 4)
 
 set -e
 
@@ -18,6 +22,11 @@ RCLONE_REMOTE="${RCLONE_REMOTE:-b2}"
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 LORAS_DIR="${COMFYUI_DIR}/models/loras"
 REMOTE_LORAS_PATH="${RCLONE_REMOTE}:comfyui/models/loras"
+
+RCLONE_MULTI_THREAD_STREAMS="${RCLONE_MULTI_THREAD_STREAMS:-8}"
+RCLONE_BUFFER_SIZE="${RCLONE_BUFFER_SIZE:-256M}"
+RCLONE_S3_CHUNK_SIZE="${RCLONE_S3_CHUNK_SIZE:-128M}"
+RCLONE_TRANSFERS="${RCLONE_TRANSFERS:-4}"
 
 if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     mkdir -p /root/.config/rclone
@@ -40,10 +49,10 @@ echo "Uploading .safetensors files from ${LORAS_DIR} to ${REMOTE_LORAS_PATH} ...
 
 rclone copy \
     --include="*.safetensors" \
-    --multi-thread-streams=8 \
-    --buffer-size=256M \
-    --s3-chunk-size=128M \
-    --transfers=4 \
+    --multi-thread-streams="${RCLONE_MULTI_THREAD_STREAMS}" \
+    --buffer-size="${RCLONE_BUFFER_SIZE}" \
+    --s3-chunk-size="${RCLONE_S3_CHUNK_SIZE}" \
+    --transfers="${RCLONE_TRANSFERS}" \
     --fast-list \
     --progress \
     "${LORAS_DIR}" "${REMOTE_LORAS_PATH}"
