@@ -20,7 +20,7 @@ These cover the workflows currently referenced in this repo, including Wan image
 
 - The default command launches ComfyUI on `0.0.0.0:8188`
 - A sidecar sync server listens on `0.0.0.0:8189` by default
-- Models live under `/workspace/ComfyUI/models`
+- Models live under `/ComfyUI/models`
 - Outputs are written under `/workspace/comfyui-vid-runs`
 - `entrypoint.sh` starts the sync server in the background and then `exec`s ComfyUI
 
@@ -53,7 +53,7 @@ curl -G 'http://localhost:8189/' \
 
 The sync server:
 
-- Copies from `b2:<path>` into `$WORKSPACE_COMFYUI_DIR/<path>`
+- Copies from `b2:<path>` into `/ComfyUI/<path>`
 - Skips files that already exist locally
 - Runs up to 3 copies in parallel by default
 - Accepts repeated `files` query parameters, form payloads, or JSON with `{"files": ["..."]}`
@@ -64,19 +64,6 @@ Useful environment variables:
 - `COMFYUI_SYNC_SERVER_HOST` and `COMFYUI_SYNC_SERVER_PORT` change the bind address
 - `COMFYUI_SYNC_MAX_JOBS` changes the parallel copy limit
 - `COMFYUI_SYNC_RCLONE_REMOTE` changes the rclone remote name from the default `b2`
-
-## Model Layout
-
-The container expects the usual ComfyUI model directories under `/workspace/ComfyUI/models`, including:
-
-- `checkpoints`
-- `clip`
-- `diffusion_models`
-- `embeddings`
-- `loras`
-- `text_encoders`
-- `upscale_models`
-- `vae`
 
 ## OneTrainer CLI
 
@@ -104,6 +91,14 @@ To call a script directly:
 
 ```bash
 /opt/onetrainer-venv/bin/python /OneTrainer/scripts/train.py -h
+```
+
+## LoRA Helpers
+
+To symlink files from `/workspace/loras` into `/ComfyUI/models/loras`, run:
+
+```bash
+./link_workspace_loras.sh
 ```
 
 ## Files

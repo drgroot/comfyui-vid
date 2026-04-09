@@ -2,7 +2,6 @@ FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV COMFYUI_DIR=/ComfyUI
-ENV WORKSPACE_COMFYUI_DIR=/workspace/ComfyUI
 ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -107,6 +106,7 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
 
 COPY . .
 COPY extra_model_paths.yaml ${COMFYUI_DIR}/extra_model_paths.yaml
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /link_workspace_loras.sh && \
+    ln -sf /link_workspace_loras.sh /usr/local/bin/link-workspace-loras
 
 CMD ["/entrypoint.sh"]
