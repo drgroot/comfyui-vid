@@ -54,7 +54,7 @@ def _copy_one(file_name: str) -> dict:
         return {"file": file_name, "status": "skipped", "detail": "already exists"}
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    remote_path = f"{RCLONE_REMOTE}:comfyui/{relative_path.as_posix()}"
+    remote_path = f"{RCLONE_REMOTE}:servc-gen/{relative_path.as_posix()}"
     command = ["rclone", "copyto", *RCLONE_FLAGS, remote_path, str(destination)]
 
     completed = subprocess.run(
