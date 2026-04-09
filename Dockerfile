@@ -102,7 +102,7 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
             > "/usr/local/bin/onetrainer-${script}" && \
         chmod +x "/usr/local/bin/onetrainer-${script}"; \
     done && \
-    apt-get purge -y --auto-remove build-essential git pkg-config python3-dev python3-venv && \
+    apt-get purge -y --auto-remove build-essential pkg-config python3-dev python3-venv && \
     rm -rf /root/.cache /var/lib/apt/lists/*
 
 COPY . .
