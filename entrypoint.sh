@@ -3,13 +3,6 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-if [ -n "${MY_SSH_PUB}" ]; then
-    mkdir -p /root/.ssh
-    chmod 700 /root/.ssh
-    echo "${MY_SSH_PUB}" >> /root/.ssh/authorized_keys
-    chmod 600 /root/.ssh/authorized_keys
-fi
-
 if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     mkdir -p /root/.config/rclone
     chmod 700 /root/.config/rclone
@@ -40,25 +33,9 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
 fi
 
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
-WORKSPACE_COMFYUI_DIR="${WORKSPACE_COMFYUI_DIR:-/workspace/ComfyUI}"
-COMFYUI_MODELS_DIR="${COMFYUI_DIR}/models"
-WORKSPACE_MODELS_DIR="${WORKSPACE_COMFYUI_DIR}/models"
 COMFYUI_SYNC_SERVER_HOST="${COMFYUI_SYNC_SERVER_HOST:-0.0.0.0}"
 COMFYUI_SYNC_SERVER_PORT="${COMFYUI_SYNC_SERVER_PORT:-8189}"
 COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
-
-mkdir -p "$WORKSPACE_MODELS_DIR"/{checkpoints,loras,text_encoders,vae}
-
-# if [ -L "$COMFYUI_MODELS_DIR" ]; then
-#     rm -f "$COMFYUI_MODELS_DIR"
-# elif [ -d "$COMFYUI_MODELS_DIR" ]; then
-#     if find "$COMFYUI_MODELS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
-#         cp -a "$COMFYUI_MODELS_DIR"/. "$WORKSPACE_MODELS_DIR"/
-#     fi
-#     rm -rf "$COMFYUI_MODELS_DIR"
-# fi
-
-# ln -s "$WORKSPACE_MODELS_DIR" "$COMFYUI_MODELS_DIR"
 
 COMFYUI_RUNS_DIR="${COMFYUI_DIR}/output/comfyui-vid-runs"
 WORKSPACE_RUNS_DIR="/workspace/comfyui-vid-runs"
