@@ -66,6 +66,7 @@ RUN python3 -m pip install --no-cache-dir \
         scikit-image \
         sentencepiece \
         "segment_anything" \
+        "git+https://github.com/facebookresearch/sam2" \
         timm \
         transformers \
         "ultralytics>=8.3.162" \
