@@ -55,6 +55,9 @@ mkdir -p "${COMFYUI_DIR}/output"
 ln -s "$WORKSPACE_RUNS_DIR" "$COMFYUI_RUNS_DIR"
 
 comfyui_args=(--listen)
+if [ "${COMFYUI_DISABLE_CUDA_MALLOC:-1}" = "1" ] || [ "${COMFYUI_DISABLE_CUDA_MALLOC}" = "true" ]; then
+    comfyui_args+=(--disable-cuda-malloc)
+fi
 if [ "${COMFYUI_USE_SAGE_ATTENTION:-auto}" = "auto" ]; then
     if python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('sageattention') else 1)"; then
         comfyui_args+=(--use-sage-attention)
