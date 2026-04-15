@@ -12,7 +12,7 @@ fi
 
 if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
     echo "Downloading models from remote storage..." >&2
-    IFS=',' read -ra _model_files <<< "${DOWNLOAD_MODELS}"
+    IFS=',' read -ra _model_files <<< "${DOWNLOAD_MODELS//$'\n'/,}"
     for _model_file in "${_model_files[@]}"; do
         _model_file=$(echo "$_model_file" | xargs)
         [ -z "$_model_file" ] && continue
