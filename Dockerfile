@@ -68,7 +68,7 @@ RUN python3 -m pip install --no-cache-dir \
         "segment_anything" \
         "git+https://github.com/facebookresearch/sam2" \
         timm \
-        transformers==4.41.2 \
+        transformers==4.57.6 \
         "ultralytics>=8.3.162" \
         websocket-client
 
@@ -88,7 +88,7 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Fannovel16/comfyui_controlnet_aux "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux" && \
     python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux/requirements.txt" && \
     # GroundingDINO in comfyui_segment_anything still uses the Transformers 4.x API.
-    python3 -m pip install --no-cache-dir "transformers==4.41.2" && \
+    python3 -m pip install --no-cache-dir "transformers==4.57.6" && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
