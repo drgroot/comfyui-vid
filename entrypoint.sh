@@ -26,7 +26,7 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
                 --s3-chunk-size=128M \
                 --transfers=1 \
                 --fast-list \
-                "b2:/servc-gen/models/$_model_file" "$_dest_dir" || \
+                "b2:/servc-infra-gen/models/$_model_file" "$_dest_dir" || \
             echo "Warning: Failed to download $_model_file" >&2
         ) &
     done
