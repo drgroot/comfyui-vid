@@ -12,6 +12,7 @@ This repository builds a ComfyUI container focused on the workflows in `basic.js
 - `ComfyUI-Impact-Subpack`
 - `comfyui_segment_anything`
 - `ComfyUI_essentials`
+- `ComfyUI_smZNodes` (for `CLIP Text Encode++`)
 - [OneTrainer](https://github.com/Nerogar/OneTrainer) (CLI only)
 
 These cover the workflows currently referenced in this repo, including Wan image-to-video, T2I, I2I, and SAM-related flows.
