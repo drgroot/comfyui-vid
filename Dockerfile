@@ -46,6 +46,7 @@ RUN python3 -m pip install --no-cache-dir \
         "huggingface_hub[hf_transfer]" \
         accelerate \
         color-matcher \
+        compel \
         diffusers \
         dill \
         einops \
@@ -58,6 +59,7 @@ RUN python3 -m pip install --no-cache-dir \
         opencv-python-headless \
         "peft>=0.17.0" \
         "pillow>=10.3.0" \
+        "lark>=1.1.9" \
         piexif \
         protobuf \
         pyloudnorm \
@@ -85,6 +87,7 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/cubiq/ComfyUI_essentials "$COMFYUI_DIR/custom_nodes/ComfyUI_essentials" && \
     git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-WanVideoWrapper "$COMFYUI_DIR/custom_nodes/ComfyUI-WanVideoWrapper" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF "$COMFYUI_DIR/custom_nodes/ComfyUI-Wan-SVI2Pro-FLF" && \
+    git clone $GIT_CLONE_FLAGS https://github.com/shiimizu/ComfyUI_smZNodes "$COMFYUI_DIR/custom_nodes/ComfyUI_smZNodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Fannovel16/comfyui_controlnet_aux "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux" && \
     python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux/requirements.txt" && \
     # GroundingDINO in comfyui_segment_anything still uses the Transformers 4.x API.
