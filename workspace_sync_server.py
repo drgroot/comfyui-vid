@@ -14,7 +14,8 @@ RCLONE_REMOTE = os.environ.get("COMFYUI_SYNC_RCLONE_REMOTE", "b2")
 SERVER_HOST = os.environ.get("COMFYUI_SYNC_SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.environ.get("COMFYUI_SYNC_SERVER_PORT", "8189"))
 MAX_JOBS = int(os.environ.get("COMFYUI_SYNC_MAX_JOBS", "3"))
-WORKSPACE_DIR = Path(os.environ.get("COMFYUI_DIR", "/ComfyUI")).resolve()
+COMFYUI_DIR = Path(os.environ.get("COMFYUI_DIR", "/ComfyUI")).resolve()
+MODELS_DIR = COMFYUI_DIR / "models"
 
 RCLONE_FLAGS = [
     "--checkers=4",
@@ -44,17 +45,17 @@ def _copy_one(file_name: str) -> dict:
     except ValueError as exc:
         return {"file": file_name, "status": "invalid", "detail": str(exc)}
 
-    destination = (WORKSPACE_DIR / relative_path).resolve()
+    destination = (MODELS_DIR / relative_path).resolve()
     try:
-        destination.relative_to(WORKSPACE_DIR)
+        destination.relative_to(MODELS_DIR)
     except ValueError:
-        return {"file": file_name, "status": "invalid", "detail": "path escapes workspace"}
+        return {"file": file_name, "status": "invalid", "detail": "path escapes models directory"}
 
     if destination.exists():
         return {"file": file_name, "status": "skipped", "detail": "already exists"}
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    remote_path = f"{RCLONE_REMOTE}:servc-infra-gen/{relative_path.as_posix()}"
+    remote_path = f"{RCLONE_REMOTE}:{relative_path.as_posix()}"
     command = ["rclone", "copyto", *RCLONE_FLAGS, remote_path, str(destination)]
 
     completed = subprocess.run(
@@ -149,7 +150,7 @@ class SyncRequestHandler(BaseHTTPRequestHandler):
         self._send_json(
             status_code,
             {
-                "workspace": str(WORKSPACE_DIR),
+                "models_directory": str(MODELS_DIR),
                 "remote": RCLONE_REMOTE,
                 "results": results,
             },
@@ -168,11 +169,11 @@ class SyncRequestHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
     with ThreadingHTTPServer((SERVER_HOST, SERVER_PORT), SyncRequestHandler) as server:
         print(
             f"workspace sync server listening on {SERVER_HOST}:{SERVER_PORT}, "
-            f"workspace={WORKSPACE_DIR}, remote={RCLONE_REMOTE}, max_jobs={MAX_JOBS}",
+            f"models_directory={MODELS_DIR}, remote={RCLONE_REMOTE}, max_jobs={MAX_JOBS}",
             flush=True,
         )
         server.serve_forever()

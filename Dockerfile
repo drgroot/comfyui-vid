@@ -9,8 +9,6 @@ ENV PYTHONUNBUFFERED=1
 ENV GIT_CLONE_FLAGS="--depth 1"
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
-ENV ONETRAINER_DIR=/OneTrainer
-ENV ONETRAINER_VENV=/opt/onetrainer-venv
 
 WORKDIR /
 
@@ -87,32 +85,21 @@ RUN mkdir -p "$COMFYUI_DIR/custom_nodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/cubiq/ComfyUI_essentials "$COMFYUI_DIR/custom_nodes/ComfyUI_essentials" && \
     git clone $GIT_CLONE_FLAGS https://github.com/kijai/ComfyUI-WanVideoWrapper "$COMFYUI_DIR/custom_nodes/ComfyUI-WanVideoWrapper" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Well-Made/ComfyUI-Wan-SVI2Pro-FLF "$COMFYUI_DIR/custom_nodes/ComfyUI-Wan-SVI2Pro-FLF" && \
+    git clone $GIT_CLONE_FLAGS https://github.com/Lightricks/ComfyUI-LTXVideo "$COMFYUI_DIR/custom_nodes/ComfyUI-LTXVideo" && \
     git clone $GIT_CLONE_FLAGS https://github.com/shiimizu/ComfyUI_smZNodes "$COMFYUI_DIR/custom_nodes/ComfyUI_smZNodes" && \
     git clone $GIT_CLONE_FLAGS https://github.com/Fannovel16/comfyui_controlnet_aux "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux" && \
+    python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/custom_nodes/ComfyUI-LTXVideo/requirements.txt" && \
     python3 -m pip install --no-cache-dir -r "$COMFYUI_DIR/custom_nodes/comfyui_controlnet_aux/requirements.txt" && \
     # GroundingDINO in comfyui_segment_anything still uses the Transformers 4.x API.
     python3 -m pip install --no-cache-dir "transformers==4.57.6" && \
     python3 -m pip install --no-cache-dir \
         addict \
         yapf && \
-    git clone $GIT_CLONE_FLAGS https://github.com/Nerogar/OneTrainer.git "$ONETRAINER_DIR" && \
-    python3 -m venv "$ONETRAINER_VENV" && \
-    "$ONETRAINER_VENV/bin/pip" install --upgrade --no-cache-dir pip setuptools wheel && \
-    "$ONETRAINER_VENV/bin/pip" install --no-cache-dir \
-        --extra-index-url https://download.pytorch.org/whl/cu128 \
-        -r "$ONETRAINER_DIR/requirements.txt" && \
-    for script in train convert_model sample create_train_files generate_captions generate_masks calculate_loss; do \
-        printf '#!/bin/sh\ncd %s\nexec %s/bin/python scripts/%s.py "$@"\n' \
-            "$ONETRAINER_DIR" "$ONETRAINER_VENV" "$script" \
-            > "/usr/local/bin/onetrainer-${script}" && \
-        chmod +x "/usr/local/bin/onetrainer-${script}"; \
-    done && \
     apt-get purge -y --auto-remove build-essential pkg-config python3-dev python3-venv && \
     rm -rf /root/.cache /var/lib/apt/lists/*
 
 COPY . .
 COPY extra_model_paths.yaml ${COMFYUI_DIR}/extra_model_paths.yaml
-RUN chmod +x /entrypoint.sh /link_workspace_loras.sh && \
-    ln -sf /link_workspace_loras.sh /usr/local/bin/link-workspace-loras
+RUN chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]

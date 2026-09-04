@@ -13,16 +13,16 @@ This repository builds a ComfyUI container focused on the workflows in `basic.js
 - `comfyui_segment_anything`
 - `ComfyUI_essentials`
 - `ComfyUI_smZNodes` (for `CLIP Text Encode++`)
-- [OneTrainer](https://github.com/Nerogar/OneTrainer) (CLI only)
+- `ComfyUI-LTXVideo` (official Lightricks LTX 2.3/2.5 workflow and utility nodes)
 
-These cover the workflows currently referenced in this repo, including Wan image-to-video, T2I, I2I, and SAM-related flows.
+These cover the workflows currently referenced in this repo, including Wan and LTX image-to-video, T2I, I2I, and SAM-related flows. Current ComfyUI core supplies the model nodes for FLUX.2 (including klein 9B), Krea 2, and LTX 2.x; no separate custom-node packages are required for those base model loaders.
 
 ## Image Behavior
 
 - The default command launches ComfyUI on `0.0.0.0:8188`
 - A sidecar sync server listens on `0.0.0.0:8189` by default
 - Models live under `/ComfyUI/models`
-- Outputs are written under `/workspace/comfyui-vid-runs`
+- Outputs are written under `/ComfyUI/output`
 - `entrypoint.sh` starts the sync server in the background and then `exec`s ComfyUI
 
 ## Build
@@ -44,17 +44,17 @@ docker run --rm \
 
 Then open `http://localhost:8188`.
 
-To fetch files from the `b2` rclone remote into the workspace, call:
+To fetch files from the `b2` rclone remote into ComfyUI's model directory, call:
 
 ```bash
 curl -G 'http://localhost:8189/' \
-  --data-urlencode 'files=models/checkpoints/foo.safetensors' \
-  --data-urlencode 'files=models/vae/bar.safetensors'
+  --data-urlencode 'files=checkpoints/foo.safetensors' \
+  --data-urlencode 'files=vae/bar.safetensors'
 ```
 
 The sync server:
 
-- Copies from `b2:<path>` into `/ComfyUI/<path>`
+- Copies from `b2:<path>` into `/ComfyUI/models/<path>`
 - Skips files that already exist locally
 - Runs up to 3 copies in parallel by default
 - Accepts repeated `files` query parameters, form payloads, or JSON with `{"files": ["..."]}`
@@ -66,48 +66,21 @@ Useful environment variables:
 - `COMFYUI_SYNC_MAX_JOBS` changes the parallel copy limit
 - `COMFYUI_SYNC_RCLONE_REMOTE` changes the rclone remote name from the default `b2`
 
-## OneTrainer CLI
+### Startup model downloads
 
-OneTrainer is installed in a dedicated venv at `/opt/onetrainer-venv` with its source at `/OneTrainer`.
-The following wrapper scripts are available on `PATH`:
+Set `SECRET_RCLONE_CONFIG` to the contents of an rclone configuration and set `DOWNLOAD_MODELS` to a comma- or newline-separated list of model paths relative to `/ComfyUI/models`. `COMFYUI_SYNC_RCLONE_REMOTE` selects the rclone remote and defaults to `b2`.
 
-| Command | Script |
-|---|---|
-| `onetrainer-train` | `scripts/train.py` |
-| `onetrainer-convert_model` | `scripts/convert_model.py` |
-| `onetrainer-sample` | `scripts/sample.py` |
-| `onetrainer-create_train_files` | `scripts/create_train_files.py` |
-| `onetrainer-generate_captions` | `scripts/generate_captions.py` |
-| `onetrainer-generate_masks` | `scripts/generate_masks.py` |
-| `onetrainer-calculate_loss` | `scripts/calculate_loss.py` |
-
-Example:
+For example:
 
 ```bash
-onetrainer-train -h
-onetrainer-train --config /workspace/my_training_config.json
+docker run --rm --gpus all \
+  -e SECRET_RCLONE_CONFIG="$(<rclone.conf)" \
+  -e COMFYUI_SYNC_RCLONE_REMOTE=b2 \
+  -e DOWNLOAD_MODELS=$'checkpoints/model.safetensors\nvae/model-vae.safetensors\nloras/style.safetensors' \
+  comfyui-vid:test
 ```
 
-To call a script directly:
-
-```bash
-/opt/onetrainer-venv/bin/python /OneTrainer/scripts/train.py -h
-```
-
-## LoRA Helpers
-
-To symlink files from `/workspace/loras` into `/ComfyUI/models/loras`, run:
-
-```bash
-./link_workspace_loras.sh
-```
-
-## Files
-
-- `Dockerfile`: image build
-- `entrypoint.sh`: container startup
-- `basic.json`: reference workflow
-- `extra_model_paths.yaml`: ComfyUI model path config
+At startup, each entry is copied from `${COMFYUI_SYNC_RCLONE_REMOTE:-b2}:<path>` to `/ComfyUI/models/<path>`—`b2:<path>` when the default remote is used. Downloads begin in the background, so ComfyUI starts immediately; wait for a model's transfer to finish before running a workflow that needs it.
 
 ## Notes
 

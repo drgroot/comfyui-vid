@@ -3,6 +3,9 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
+COMFYUI_SYNC_RCLONE_REMOTE="${COMFYUI_SYNC_RCLONE_REMOTE:-b2}"
+
 if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     mkdir -p /root/.config/rclone
     chmod 700 /root/.config/rclone
@@ -16,7 +19,7 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
     for _model_file in "${_model_files[@]}"; do
         _model_file=$(echo "$_model_file" | xargs)
         [ -z "$_model_file" ] && continue
-        _dest_dir="/ComfyUI/models/$(dirname "$_model_file")"
+        _dest_dir="${COMFYUI_DIR}/models/$(dirname "$_model_file")"
         mkdir -p "$_dest_dir"
         echo "Downloading in background: $_model_file" >&2
         (
@@ -26,33 +29,15 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
                 --s3-chunk-size=128M \
                 --transfers=1 \
                 --fast-list \
-                "b2:/servc-infra-gen/models/$_model_file" "$_dest_dir" || \
+                "${COMFYUI_SYNC_RCLONE_REMOTE}:$_model_file" "$_dest_dir" || \
             echo "Warning: Failed to download $_model_file" >&2
         ) &
     done
 fi
 
-COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 COMFYUI_SYNC_SERVER_HOST="${COMFYUI_SYNC_SERVER_HOST:-0.0.0.0}"
 COMFYUI_SYNC_SERVER_PORT="${COMFYUI_SYNC_SERVER_PORT:-8189}"
 COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
-
-COMFYUI_RUNS_DIR="${COMFYUI_DIR}/output/comfyui-vid-runs"
-WORKSPACE_RUNS_DIR="/workspace/comfyui-vid-runs"
-
-mkdir -p "$WORKSPACE_RUNS_DIR"
-
-if [ -L "$COMFYUI_RUNS_DIR" ]; then
-    rm -f "$COMFYUI_RUNS_DIR"
-elif [ -d "$COMFYUI_RUNS_DIR" ]; then
-    if find "$COMFYUI_RUNS_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
-        cp -a "$COMFYUI_RUNS_DIR"/. "$WORKSPACE_RUNS_DIR"/
-    fi
-    rm -rf "$COMFYUI_RUNS_DIR"
-fi
-
-mkdir -p "${COMFYUI_DIR}/output"
-ln -s "$WORKSPACE_RUNS_DIR" "$COMFYUI_RUNS_DIR"
 
 comfyui_args=(--listen)
 if [ "${COMFYUI_DISABLE_CUDA_MALLOC:-1}" = "1" ] || [ "${COMFYUI_DISABLE_CUDA_MALLOC}" = "true" ]; then
