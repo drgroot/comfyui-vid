@@ -29,6 +29,7 @@ RUN if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
         python3-dev \
         python3-venv \
         pkg-config \
+        unzip \
         wget && \
     curl -fsSL https://rclone.org/install.sh | bash && \
     /usr/bin/python3 -m venv "$VIRTUAL_ENV" && \
