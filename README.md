@@ -56,14 +56,14 @@ The sync server:
 
 - Copies from `b2:<path>` into `/ComfyUI/models/<path>`
 - Skips files that already exist locally
-- Runs up to 3 copies in parallel by default
+- Runs up to 2 copies in parallel by default, with 8 ranged download streams per copy
 - Accepts repeated `files` query parameters, form payloads, or JSON with `{"files": ["..."]}`
 
 Useful environment variables:
 
 - `COMFYUI_SYNC_SERVER_ENABLED=0` disables the sidecar server
 - `COMFYUI_SYNC_SERVER_HOST` and `COMFYUI_SYNC_SERVER_PORT` change the bind address
-- `COMFYUI_SYNC_MAX_JOBS` changes the parallel copy limit
+- `COMFYUI_SYNC_MAX_JOBS` changes the parallel copy limit (default: 2)
 - `COMFYUI_SYNC_RCLONE_REMOTE` changes the rclone remote name from the default `b2`
 
 ### Startup model downloads
@@ -81,6 +81,8 @@ docker run --rm --gpus all \
 ```
 
 At startup, each entry is copied from `${COMFYUI_SYNC_RCLONE_REMOTE:-b2}:<path>` to `/ComfyUI/models/<path>`—`b2:<path>` when the default remote is used. Downloads begin in the background, so ComfyUI starts immediately; wait for a model's transfer to finish before running a workflow that needs it.
+
+`COMFYUI_MODEL_DOWNLOAD_JOBS` limits simultaneous startup downloads (default: 2). Each large file uses 8 ranged download streams after 64 MiB, which is a good starting point for model checkpoints without starting every listed model at once. Increase either setting only after measuring the available bandwidth and object-store rate limits.
 
 ## Notes
 

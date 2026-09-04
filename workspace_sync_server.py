@@ -13,18 +13,16 @@ from urllib.parse import parse_qs, urlparse
 RCLONE_REMOTE = os.environ.get("COMFYUI_SYNC_RCLONE_REMOTE", "b2")
 SERVER_HOST = os.environ.get("COMFYUI_SYNC_SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.environ.get("COMFYUI_SYNC_SERVER_PORT", "8189"))
-MAX_JOBS = int(os.environ.get("COMFYUI_SYNC_MAX_JOBS", "3"))
+MAX_JOBS = int(os.environ.get("COMFYUI_SYNC_MAX_JOBS", "2"))
 COMFYUI_DIR = Path(os.environ.get("COMFYUI_DIR", "/ComfyUI")).resolve()
 MODELS_DIR = COMFYUI_DIR / "models"
 
 RCLONE_FLAGS = [
-    "--checkers=4",
     "--multi-thread-cutoff=64M",
-    "--multi-thread-streams=4",
-    "--buffer-size=16M",
-    "--retries=3",
-    "--low-level-retries=10",
-    "--stats=0",
+    "--multi-thread-streams=8",
+    "--multi-thread-write-buffer-size=1M",
+    "--retries=5",
+    "--low-level-retries=20",
 ]
 
 

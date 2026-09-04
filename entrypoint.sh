@@ -5,6 +5,12 @@ set -e
 
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
 COMFYUI_SYNC_RCLONE_REMOTE="${COMFYUI_SYNC_RCLONE_REMOTE:-b2}"
+COMFYUI_MODEL_DOWNLOAD_JOBS="${COMFYUI_MODEL_DOWNLOAD_JOBS:-2}"
+
+if ! [[ "${COMFYUI_MODEL_DOWNLOAD_JOBS}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "COMFYUI_MODEL_DOWNLOAD_JOBS must be a positive integer; using 2" >&2
+    COMFYUI_MODEL_DOWNLOAD_JOBS=2
+fi
 
 if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     mkdir -p /root/.config/rclone
@@ -19,16 +25,19 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
     for _model_file in "${_model_files[@]}"; do
         _model_file=$(echo "$_model_file" | xargs)
         [ -z "$_model_file" ] && continue
+        while [ "$(jobs -rp | wc -l)" -ge "$COMFYUI_MODEL_DOWNLOAD_JOBS" ]; do
+            wait -n || true
+        done
         _dest_dir="${COMFYUI_DIR}/models/$(dirname "$_model_file")"
         mkdir -p "$_dest_dir"
         echo "Downloading in background: $_model_file" >&2
         (
             rclone copy \
+                --multi-thread-cutoff=64M \
                 --multi-thread-streams=8 \
-                --buffer-size=256M \
-                --s3-chunk-size=128M \
-                --transfers=1 \
-                --fast-list \
+                --multi-thread-write-buffer-size=1M \
+                --retries=5 \
+                --low-level-retries=20 \
                 "${COMFYUI_SYNC_RCLONE_REMOTE}:$_model_file" "$_dest_dir" || \
             echo "Warning: Failed to download $_model_file" >&2
         ) &
