@@ -33,11 +33,11 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
         echo "Downloading in background: $_model_file" >&2
         (
             rclone copy \
-                --multi-thread-cutoff=64M \
-                --multi-thread-streams=8 \
-                --multi-thread-write-buffer-size=1M \
+                --buffer-size=64M \
                 --retries=5 \
                 --low-level-retries=20 \
+                --contimeout=30s \
+                --timeout=10m \
                 "${COMFYUI_SYNC_RCLONE_REMOTE}:$_model_file" "$_dest_dir" || \
             echo "Warning: Failed to download $_model_file" >&2
         ) &
