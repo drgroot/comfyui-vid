@@ -18,11 +18,11 @@ COMFYUI_DIR = Path(os.environ.get("COMFYUI_DIR", "/ComfyUI")).resolve()
 MODELS_DIR = COMFYUI_DIR / "models"
 
 RCLONE_FLAGS = [
-    "--multi-thread-cutoff=64M",
-    "--multi-thread-streams=8",
-    "--multi-thread-write-buffer-size=1M",
+    "--buffer-size=64M",
     "--retries=5",
     "--low-level-retries=20",
+    "--contimeout=30s",
+    "--timeout=10m",
 ]
 
 
