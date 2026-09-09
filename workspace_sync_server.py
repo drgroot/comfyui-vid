@@ -2,6 +2,7 @@
 
 import json
 import os
+import stat
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http import HTTPStatus
@@ -24,6 +25,89 @@ RCLONE_FLAGS = [
     "--contimeout=30s",
     "--timeout=10m",
 ]
+
+
+def _human_size(size: int) -> str:
+    value = float(size)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB", "PiB"):
+        if value < 1024 or unit == "PiB":
+            return f"{value:.1f} {unit}" if unit != "B" else f"{size} B"
+        value /= 1024
+
+
+def _rclone_status(proc_root: Path = Path("/proc")) -> dict:
+    """Inspect this PID namespace without invoking ps, lsof, or rclone RC.
+
+    Open writable model files include rclone's temporary .partial files.
+    Sizes describe files on disk, not transferred bytes: rclone can preallocate.
+    """
+    processes = []
+    inaccessible = 0
+    models = MODELS_DIR.resolve()
+    for process_dir in proc_root.iterdir():
+        if not process_dir.name.isdigit():
+            continue
+        try:
+            if process_dir.joinpath("comm").read_text().strip() != "rclone":
+                continue
+        except PermissionError:
+            inaccessible += 1
+            continue
+        except OSError:
+            continue  # Processes can exit during enumeration.
+
+        process = {"pid": int(process_dir.name), "files": [], "inspection": "ok"}
+        files = {}
+        try:
+            for descriptor in process_dir.joinpath("fd").iterdir():
+                try:
+                    info = process_dir.joinpath("fdinfo", descriptor.name).read_text()
+                    flags = next(line.split()[1] for line in info.splitlines()
+                                 if line.startswith("flags:"))
+                    if int(flags, 8) & os.O_ACCMODE == os.O_RDONLY:
+                        continue
+                    target = Path(os.readlink(descriptor))
+                    relative = target.relative_to(models)
+                    file_stat = descriptor.stat()
+                    if not stat.S_ISREG(file_stat.st_mode):
+                        continue
+                    files[str(relative)] = {
+                        "file": str(relative),
+                        "size_bytes": file_stat.st_size,
+                        "size": _human_size(file_stat.st_size),
+                        "allocated_bytes": file_stat.st_blocks * 512,
+                        "allocated": _human_size(file_stat.st_blocks * 512),
+                    }
+                except PermissionError:
+                    process["inspection"] = "partial"
+                except (OSError, ValueError, StopIteration):
+                    continue  # Closed descriptors, pipes, or non-model files.
+        except OSError:
+            process["inspection"] = "unavailable"
+
+        # Both launchers put source and destination last. This is a fallback
+        # label before the output is opened, not a general rclone CLI parser.
+        try:
+            args = os.fsdecode(process_dir.joinpath("cmdline").read_bytes()).rstrip("\0").split("\0")
+            if len(args) >= 4 and args[1] in {"copy", "copyto"}:
+                source, destination = args[-2:]
+                if ":" in source and destination.startswith("/"):
+                    target = Path(destination)
+                    if args[1] == "copy":
+                        target /= Path(source.split(":", 1)[1]).name
+                    process["requested_file"] = str(target.resolve().relative_to(models))
+        except (OSError, ValueError):
+            pass
+        process["files"] = [files[key] for key in sorted(files)]
+        if not files:
+            process["detail"] = "No writable model file visible (starting, idle, finishing, or inaccessible)."
+        processes.append(process)
+
+    return {
+        "processes": sorted(processes, key=lambda item: item["pid"]),
+        "inaccessible_processes": inaccessible,
+        "note": "Visible rclone processes in this container; files are writable files under the models directory. Sizes may be preallocated and are not download progress percentages.",
+    }
 
 
 def _normalize_file_path(file_name: str) -> Path:
@@ -120,6 +204,14 @@ class SyncRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/status":
+            try:
+                payload = _rclone_status()
+            except OSError:
+                self._send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Linux /proc process inspection is unavailable"})
+                return
+            self._send_json(HTTPStatus.OK, payload)
+            return
         if parsed.path != "/":
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
@@ -158,10 +250,11 @@ class SyncRequestHandler(BaseHTTPRequestHandler):
         print(format % args, flush=True)
 
     def _send_json(self, status_code: HTTPStatus, payload: dict):
-        body = json.dumps(payload).encode("utf-8")
+        body = json.dumps(payload, indent=2).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 

@@ -59,6 +59,27 @@ The sync server:
 - Runs up to 2 copies in parallel by default, with 8 ranged download streams per copy
 - Accepts repeated `files` query parameters, form payloads, or JSON with `{"files": ["..."]}`
 
+### Download status (no SSH required)
+
+Open `http://<server>:8189/status` in a browser, or run `curl http://localhost:8189/status`.
+This unauthenticated, read-only endpoint returns formatted JSON listing rclone PIDs,
+the currently open model files (including temporary `.partial` files), their logical
+size (`size`, `size_bytes`), and allocated disk space (`allocated`, `allocated_bytes`).
+Sizes use human-readable units such as `1.5 GiB`. `requested_file` identifies the
+target of copies launched by this image when it can be inferred, including before
+the output file is opened. An empty `processes` list means no visible rclone processes.
+
+Inspection uses Python's standard library and Linux `/proc`; no SSH, `ps`, `lsof`,
+extra Python packages, or rclone remote-control server is required. It includes both
+startup downloads and copies requested through the sync server in the same PID
+namespace. Only writable files under the models directory are listed; command lines
+and credentials are not returned. Inaccessible processes/files are reported where
+detectable, and a missing `/proc` returns HTTP 503.
+
+These are disk-size snapshots, not completion percentages: rclone may preallocate
+files. Refresh to take another snapshot. The sync server starts before the startup
+download queue so `/status` remains available while models are downloading.
+
 Useful environment variables:
 
 - `COMFYUI_SYNC_SERVER_ENABLED=0` disables the sidecar server
