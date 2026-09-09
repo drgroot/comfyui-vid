@@ -19,7 +19,19 @@ if [ -n "${SECRET_RCLONE_CONFIG}" ]; then
     chmod 600 /root/.config/rclone/rclone.conf
 fi
 
+COMFYUI_SYNC_SERVER_HOST="${COMFYUI_SYNC_SERVER_HOST:-0.0.0.0}"
+COMFYUI_SYNC_SERVER_PORT="${COMFYUI_SYNC_SERVER_PORT:-8189}"
+COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
+
+# Make /status available while the startup download queue is still running.
+if [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "1" ] || [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "true" ]; then
+    python3 /workspace_sync_server.py &
+    echo "Started workspace sync server on ${COMFYUI_SYNC_SERVER_HOST}:${COMFYUI_SYNC_SERVER_PORT}" >&2
+fi
+
 if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
+    # Keep download job accounting separate from the sync server process.
+    (
     echo "Downloading models from remote storage..." >&2
     IFS=',' read -ra _model_files <<< "${DOWNLOAD_MODELS//$'\n'/,}"
     for _model_file in "${_model_files[@]}"; do
@@ -42,11 +54,9 @@ if [ -f /root/.config/rclone/rclone.conf ] && [ -n "${DOWNLOAD_MODELS}" ]; then
             echo "Warning: Failed to download $_model_file" >&2
         ) &
     done
+    wait
+    ) &
 fi
-
-COMFYUI_SYNC_SERVER_HOST="${COMFYUI_SYNC_SERVER_HOST:-0.0.0.0}"
-COMFYUI_SYNC_SERVER_PORT="${COMFYUI_SYNC_SERVER_PORT:-8189}"
-COMFYUI_SYNC_SERVER_ENABLED="${COMFYUI_SYNC_SERVER_ENABLED:-1}"
 
 comfyui_args=(--listen)
 if [ "${COMFYUI_DISABLE_CUDA_MALLOC:-1}" = "1" ] || [ "${COMFYUI_DISABLE_CUDA_MALLOC}" = "true" ]; then
@@ -66,11 +76,6 @@ if [ "${COMFYUI_FORCE_CPU:-auto}" = "auto" ]; then
     fi
 elif [ "${COMFYUI_FORCE_CPU}" = "1" ] || [ "${COMFYUI_FORCE_CPU}" = "true" ]; then
     comfyui_args+=(--cpu)
-fi
-
-if [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "1" ] || [ "${COMFYUI_SYNC_SERVER_ENABLED}" = "true" ]; then
-    python3 /workspace_sync_server.py &
-    echo "Started workspace sync server on ${COMFYUI_SYNC_SERVER_HOST}:${COMFYUI_SYNC_SERVER_PORT}" >&2
 fi
 
 exec python3 "$COMFYUI_DIR/main.py" "${comfyui_args[@]}"
