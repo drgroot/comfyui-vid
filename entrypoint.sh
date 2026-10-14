@@ -4,8 +4,23 @@
 set -e
 
 COMFYUI_DIR="${COMFYUI_DIR:-/ComfyUI}"
+WORKSPACE_S3_DIR="${WORKSPACE_S3_DIR:-/workspace-s3}"
 COMFYUI_SYNC_RCLONE_REMOTE="${COMFYUI_SYNC_RCLONE_REMOTE:-b2}"
 COMFYUI_MODEL_DOWNLOAD_JOBS="${COMFYUI_MODEL_DOWNLOAD_JOBS:-2}"
+
+# Link individual files from the mounted network volume into ComfyUI's model
+# tree before starting the rclone download queue. Never link directories.
+if [ -d "${WORKSPACE_S3_DIR}" ]; then
+    while IFS= read -r -d '' _source_file; do
+        _relative_path="${_source_file#"${WORKSPACE_S3_DIR}"/}"
+        _destination="${COMFYUI_DIR}/models/${_relative_path}"
+        mkdir -p "$(dirname "${_destination}")"
+        if [ ! -e "${_destination}" ] && [ ! -L "${_destination}" ]; then
+            ln -s "${_source_file}" "${_destination}"
+            echo "Linked mounted model: ${_relative_path}" >&2
+        fi
+    done < <(find "${WORKSPACE_S3_DIR}" -type f -print0)
+fi
 
 if ! [[ "${COMFYUI_MODEL_DOWNLOAD_JOBS}" =~ ^[1-9][0-9]*$ ]]; then
     echo "COMFYUI_MODEL_DOWNLOAD_JOBS must be a positive integer; using 2" >&2
